@@ -1,70 +1,92 @@
 {
   "name": "code-visualizer",
-  "displayName": "Code Visualizer",
-  "description": "Generate mermaid diagrams for functions using GitHub Copilot",
-  "version": "1.0.0",
+  "displayName": "Code Visualizer - AI Flow Diagrams",
+  "description": "Instantly visualize code logic with AI-generated Mermaid diagrams. Hover over any function to see its flow.",
+  "version": "2.0.0",
   "publisher": "your-publisher-name",
   "engines": {
     "vscode": "^1.74.0"
   },
   "categories": [
     "Visualization",
+    "Programming Languages",
     "Other"
   ],
   "keywords": [
     "mermaid",
     "diagram",
     "flowchart",
+    "visualization",
+    "ai",
     "copilot",
-    "visualization"
+    "code analysis",
+    "documentation"
   ],
   "activationEvents": [
     "onLanguage:javascript",
     "onLanguage:typescript",
     "onLanguage:python",
     "onLanguage:java",
-    "onLanguage:csharp"
+    "onLanguage:csharp",
+    "onLanguage:go",
+    "onLanguage:rust"
   ],
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
       {
         "command": "codeVisualizer.showDiagram",
-        "title": "Show Code Diagram",
-        "category": "Code Visualizer"
+        "title": "Show Function Diagram",
+        "category": "Code Visualizer",
+        "icon": "$(symbol-method)"
       },
       {
         "command": "codeVisualizer.showDiagramPanel",
-        "title": "Show Diagram in Panel",
-        "category": "Code Visualizer"
+        "title": "Open Diagram in Side Panel",
+        "category": "Code Visualizer",
+        "icon": "$(open-preview)"
       },
       {
         "command": "codeVisualizer.storeApiToken",
-        "title": "Store API Token",
-        "category": "Code Visualizer"
+        "title": "Configure API Token",
+        "category": "Code Visualizer",
+        "icon": "$(key)"
+      },
+      {
+        "command": "codeVisualizer.clearCache",
+        "title": "Clear Diagram Cache",
+        "category": "Code Visualizer",
+        "icon": "$(trash)"
       }
     ],
     "menus": {
       "editor/context": [
         {
-          "when": "editorTextFocus",
+          "when": "editorTextFocus && resourceExtname =~ /\\.(js|ts|jsx|tsx|py|cs|java|go|rs)$/",
           "command": "codeVisualizer.showDiagram",
-          "alt": "codeVisualizer.showDiagramPanel",
           "group": "navigation@1"
+        },
+        {
+          "when": "editorTextFocus && resourceExtname =~ /\\.(js|ts|jsx|tsx|py|cs|java|go|rs)$/",
+          "command": "codeVisualizer.showDiagramPanel",
+          "group": "navigation@2"
         }
       ],
       "editor/title": [
         {
-          "when": "resourceExtname == .js || resourceExtname == .ts || resourceExtname == .py || resourceExtname == .cs",
+          "when": "resourceExtname =~ /\\.(js|ts|jsx|tsx|py|cs|java|go|rs)$/",
           "command": "codeVisualizer.showDiagramPanel",
           "group": "navigation"
         }
       ],
-      "explorer/context": [
+      "commandPalette": [
         {
-          "when": "resourceExtname == .js || resourceExtname == .ts || resourceExtname == .py || resourceExtname == .cs",
+          "command": "codeVisualizer.showDiagram",
+          "when": "editorIsOpen"
+        },
+        {
           "command": "codeVisualizer.showDiagramPanel",
-          "group": "navigation"
+          "when": "editorIsOpen"
         }
       ]
     },
@@ -85,38 +107,100 @@
     "configuration": {
       "title": "Code Visualizer",
       "properties": {
-        "codeVisualizer.apiToken": {
-          "type": "string",
-          "description": "GitHub/OpenAI API token (consider using 'Store API Token' command for security)",
-          "default": ""
-        },
         "codeVisualizer.enableHover": {
           "type": "boolean",
-          "description": "Enable diagram generation on hover",
+          "description": "Enable automatic diagram generation on hover",
           "default": true
         },
-        "codeVisualizer.diagramTheme": {
+        "codeVisualizer.provider": {
           "type": "string",
-          "enum": [
-            "default",
-            "dark",
-            "forest",
-            "neutral"
+          "enum": ["github", "openai"],
+          "enumDescriptions": [
+            "GitHub Models (Free tier available)",
+            "OpenAI API (Requires paid API key)"
           ],
-          "description": "Mermaid diagram theme",
-          "default": "dark"
+          "description": "AI provider for diagram generation",
+          "default": "github"
+        },
+        "codeVisualizer.apiToken": {
+          "type": "string",
+          "description": "API token (use 'Configure API Token' command for secure storage)",
+          "default": "",
+          "markdownDescription": "⚠️ **Security Warning**: Use the `Code Visualizer: Configure API Token` command instead for secure storage"
         },
         "codeVisualizer.maxFunctionSize": {
           "type": "number",
-          "description": "Maximum function size (in characters) to generate diagrams for",
-          "default": 2000,
-          "minimum": 100,
+          "description": "Maximum function size in characters for diagram generation",
+          "default": 5000,
+          "minimum": 500,
           "maximum": 10000
+        },
+        "codeVisualizer.diagramTheme": {
+          "type": "string",
+          "enum": ["default", "dark", "forest", "neutral"],
+          "enumDescriptions": [
+            "Default Mermaid theme",
+            "Dark theme for dark VS Code themes",
+            "Forest green theme",
+            "Neutral grayscale theme"
+          ],
+          "description": "Mermaid diagram color theme",
+          "default": "dark"
         },
         "codeVisualizer.cacheEnabled": {
           "type": "boolean",
           "description": "Enable caching of generated diagrams",
           "default": true
+        },
+        "codeVisualizer.cacheDuration": {
+          "type": "number",
+          "description": "Cache duration in hours",
+          "default": 24,
+          "minimum": 1,
+          "maximum": 168
+        },
+        "codeVisualizer.showIndicators": {
+          "type": "boolean",
+          "description": "Show visual indicators for functions with available diagrams",
+          "default": true
+        },
+        "codeVisualizer.autoRetry": {
+          "type": "boolean",
+          "description": "Automatically retry failed diagram generations",
+          "default": true
+        },
+        "codeVisualizer.retryCount": {
+          "type": "number",
+          "description": "Number of retry attempts for failed generations",
+          "default": 3,
+          "minimum": 1,
+          "maximum": 5
+        },
+        "codeVisualizer.timeout": {
+          "type": "number",
+          "description": "Timeout for AI requests in seconds",
+          "default": 10,
+          "minimum": 5,
+          "maximum": 30
+        }
+      }
+    },
+    "colors": [
+      {
+        "id": "codeVisualizer.decorationBackground",
+        "description": "Background color for function indicators",
+        "defaults": {
+          "dark": "#1e1e1e",
+          "light": "#f0f0f0"
+        }
+      }
+    ],
+    "icons": {
+      "code-diagram": {
+        "description": "Code diagram icon",
+        "default": {
+          "fontPath": "./icons/codicon.woff",
+          "fontCharacter": "\\ea7b"
         }
       }
     }
@@ -124,17 +208,45 @@
   "scripts": {
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
-    "watch": "tsc -watch -p ./"
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js",
+    "package": "vsce package",
+    "publish": "vsce publish"
   },
   "devDependencies": {
     "@types/vscode": "^1.74.0",
     "@types/node": "20.x",
-    "typescript": "^4.9.4"
+    "@typescript-eslint/eslint-plugin": "^5.45.0",
+    "@typescript-eslint/parser": "^5.45.0",
+    "eslint": "^8.28.0",
+    "typescript": "^4.9.4",
+    "vsce": "^2.15.0"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/your-username/code-visualizer"
+    "url": "https://github.com/housamkak/code-visualizer"
   },
+  "bugs": {
+    "url": "https://github.com/housamkak/code-visualizer/issues"
+  },
+  "homepage": "https://github.com/housamkak/code-visualizer#readme",
   "license": "MIT",
-  "icon": "icon.png"
+  "icon": "icon.png",
+  "galleryBanner": {
+    "color": "#1e1e1e",
+    "theme": "dark"
+  },
+  "badges": [
+    {
+      "url": "https://img.shields.io/badge/VS%20Code-1.74%2B-blue",
+      "href": "https://code.visualstudio.com/",
+      "description": "Minimum VS Code version"
+    }
+  ],
+  "qna": "https://github.com/housamkak/code-visualizer/discussions",
+  "sponsor": {
+    "url": "https://github.com/sponsors/housamkak"
+  }
 }
