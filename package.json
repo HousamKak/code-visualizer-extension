@@ -1,0 +1,140 @@
+{
+  "name": "code-visualizer",
+  "displayName": "Code Visualizer",
+  "description": "Generate mermaid diagrams for functions using GitHub Copilot",
+  "version": "1.0.0",
+  "publisher": "your-publisher-name",
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "categories": [
+    "Visualization",
+    "Other"
+  ],
+  "keywords": [
+    "mermaid",
+    "diagram",
+    "flowchart",
+    "copilot",
+    "visualization"
+  ],
+  "activationEvents": [
+    "onLanguage:javascript",
+    "onLanguage:typescript",
+    "onLanguage:python",
+    "onLanguage:java",
+    "onLanguage:csharp"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "codeVisualizer.showDiagram",
+        "title": "Show Code Diagram",
+        "category": "Code Visualizer"
+      },
+      {
+        "command": "codeVisualizer.showDiagramPanel",
+        "title": "Show Diagram in Panel",
+        "category": "Code Visualizer"
+      },
+      {
+        "command": "codeVisualizer.storeApiToken",
+        "title": "Store API Token",
+        "category": "Code Visualizer"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "when": "editorTextFocus",
+          "command": "codeVisualizer.showDiagram",
+          "alt": "codeVisualizer.showDiagramPanel",
+          "group": "navigation@1"
+        }
+      ],
+      "editor/title": [
+        {
+          "when": "resourceExtname == .js || resourceExtname == .ts || resourceExtname == .py || resourceExtname == .cs",
+          "command": "codeVisualizer.showDiagramPanel",
+          "group": "navigation"
+        }
+      ],
+      "explorer/context": [
+        {
+          "when": "resourceExtname == .js || resourceExtname == .ts || resourceExtname == .py || resourceExtname == .cs",
+          "command": "codeVisualizer.showDiagramPanel",
+          "group": "navigation"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "codeVisualizer.showDiagram",
+        "key": "ctrl+shift+d",
+        "mac": "cmd+shift+d",
+        "when": "editorTextFocus"
+      },
+      {
+        "command": "codeVisualizer.showDiagramPanel",
+        "key": "ctrl+shift+alt+d",
+        "mac": "cmd+shift+alt+d",
+        "when": "editorTextFocus"
+      }
+    ],
+    "configuration": {
+      "title": "Code Visualizer",
+      "properties": {
+        "codeVisualizer.apiToken": {
+          "type": "string",
+          "description": "GitHub/OpenAI API token (consider using 'Store API Token' command for security)",
+          "default": ""
+        },
+        "codeVisualizer.enableHover": {
+          "type": "boolean",
+          "description": "Enable diagram generation on hover",
+          "default": true
+        },
+        "codeVisualizer.diagramTheme": {
+          "type": "string",
+          "enum": [
+            "default",
+            "dark",
+            "forest",
+            "neutral"
+          ],
+          "description": "Mermaid diagram theme",
+          "default": "dark"
+        },
+        "codeVisualizer.maxFunctionSize": {
+          "type": "number",
+          "description": "Maximum function size (in characters) to generate diagrams for",
+          "default": 2000,
+          "minimum": 100,
+          "maximum": 10000
+        },
+        "codeVisualizer.cacheEnabled": {
+          "type": "boolean",
+          "description": "Enable caching of generated diagrams",
+          "default": true
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.74.0",
+    "@types/node": "20.x",
+    "typescript": "^4.9.4"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/code-visualizer"
+  },
+  "license": "MIT",
+  "icon": "icon.png"
+}
