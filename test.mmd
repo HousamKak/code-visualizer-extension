@@ -1,15 +1,29 @@
+sequenceDiagram
+participant Client
+participant Synthesizer
+participant Logger
 
-flowchart TD
-    A[OnWakeWordDetected] --> B{CurrentState.State != WaitingForWakeWord<br>OR !CurrentState.IsEnabled}
-    B -->|True| C[Return]
-    B -->|False| D[Log "Wake word detected"]
-    D --> E[UpdateState to WakeWordDetected]
-    E --> F{TextToSpeech Enabled<br>AND ResponsePhrase not empty}
-    F -->|True| G[Start Task to Speak ResponsePhrase]
-    G --> H{Task Success?}
-    H -->|Yes| I[Log "Speaking wake word response"]
-    H -->|No| J[Log Error "Error speaking wake word response"]
-    F -->|False| K[Skip Speaking Response]
-    K --> L[Delay 1000ms]
-    L --> M[BeginListeningForCommandAsync]
-    G --> L
+Client ->> Synthesizer: Check IsReady
+    alt Not Ready
+Synthesizer ->> Logger: LogError Speech synthesizer is not ready
+Synthesizer ->> Client: Return false
+    else Ready
+Synthesizer ->> Synthesizer: GetInstalledVoices
+Synthesizer ->> Synthesizer: Filter Enabled Voices
+Synthesizer ->> Synthesizer: Map to VoiceInfo
+Synthesizer ->> Synthesizer: Return Voices List
+
+Synthesizer ->> Synthesizer: Find Voice by Name
+    alt Voice Found
+Synthesizer ->> Synthesizer: SelectVoice
+Synthesizer ->> Logger: LogInformation Voice set to VoiceName
+Synthesizer ->> Client: Return true
+    else Voice Not Found
+Synthesizer ->> Logger: LogWarning Voice not found
+Synthesizer ->> Client: Return false
+    end
+    end
+opt Exception Thrown
+Synthesizer ->> Logger: LogError Error setting voice
+Synthesizer ->> Client: Return false
+    end

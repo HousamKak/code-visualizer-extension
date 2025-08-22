@@ -29,9 +29,24 @@
     "onLanguage:java",
     "onLanguage:csharp",
     "onLanguage:go",
-    "onLanguage:rust"
+    "onLanguage:rust",
+    "onLanguage:php",
+    "onLanguage:ruby",
+    "onLanguage:cpp",
+    "onLanguage:c",
+    "onLanguage:kotlin",
+    "onLanguage:swift",
+    "onLanguage:scala",
+    "onLanguage:dart"
   ],
   "main": "./out/extension.js",
+  "files": [
+    "out/",
+    "media/",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
   "contributes": {
     "commands": [
       {
@@ -57,6 +72,24 @@
         "title": "Clear Diagram Cache",
         "category": "Code Visualizer",
         "icon": "$(trash)"
+      },
+      {
+        "command": "codeVisualizer.showAnalytics",
+        "title": "Show Analytics",
+        "category": "Code Visualizer",
+        "icon": "$(graph-line)"
+      },
+      {
+        "command": "codeVisualizer.exportDiagram",
+        "title": "Export Diagram",
+        "category": "Code Visualizer",
+        "icon": "$(export)"
+      },
+      {
+        "command": "codeVisualizer.configureDiagramType",
+        "title": "Configure Diagram Types",
+        "category": "Code Visualizer",
+        "icon": "$(settings-gear)"
       }
     ],
     "menus": {
@@ -114,13 +147,48 @@
         },
         "codeVisualizer.provider": {
           "type": "string",
-          "enum": ["github", "openai"],
+          "enum": ["github", "openai", "anthropic", "local"],
           "enumDescriptions": [
-            "GitHub Models (Free tier available)",
-            "OpenAI API (Requires paid API key)"
+            "GitHub Models (Azure OpenAI)",
+            "OpenAI GPT-4",
+            "Anthropic Claude",
+            "Local Ollama instance"
           ],
           "description": "AI provider for diagram generation",
           "default": "github"
+        },
+        "codeVisualizer.fallbackProviders": {
+          "type": "boolean",
+          "description": "Use fallback providers if primary fails",
+          "default": true
+        },
+        "codeVisualizer.enableAnalytics": {
+          "type": "boolean",
+          "description": "Enable usage analytics and insights",
+          "default": true
+        },
+        "codeVisualizer.autoExport": {
+          "type": "boolean",
+          "description": "Automatically export diagrams to workspace",
+          "default": false
+        },
+        "codeVisualizer.preferredDiagramTypes": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "flowchart",
+              "sequence",
+              "stateDiagram", 
+              "classDiagram",
+              "erDiagram",
+              "journey",
+              "mindmap",
+              "timeline"
+            ]
+          },
+          "description": "Preferred diagram types (empty for auto-selection)",
+          "default": []
         },
         "codeVisualizer.apiToken": {
           "type": "string",
@@ -211,16 +279,25 @@
     "watch": "tsc -watch -p ./",
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src --ext ts",
-    "test": "node ./out/test/runTest.js",
+    "test": "npm run test:unit && npm run test:integration",
+    "test:unit": "jest --testPathPattern=unit",
+    "test:integration": "jest --testPathPattern=integration --passWithNoTests",
+    "test:e2e": "node ./out/test/runTest.js",
+    "test:coverage": "jest --coverage",
+    "test:watch": "jest --watch",
     "package": "vsce package",
     "publish": "vsce publish"
   },
   "devDependencies": {
     "@types/vscode": "^1.74.0",
     "@types/node": "20.x",
+    "@types/jest": "^29.5.12",
     "@typescript-eslint/eslint-plugin": "^5.45.0",
     "@typescript-eslint/parser": "^5.45.0",
     "eslint": "^8.28.0",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.1.2",
+    "@vscode/test-electron": "^2.3.9",
     "typescript": "^4.9.4",
     "vsce": "^2.15.0"
   },
