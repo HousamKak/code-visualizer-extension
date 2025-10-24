@@ -190,12 +190,43 @@ export class AIProviderService implements IAIProviderService {
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        // Get error details from response
+        let errorDetails = '';
+        try {
+          const errorData: any = await response.json();
+          errorDetails = errorData?.error?.message || JSON.stringify(errorData);
+        } catch (e) {
+          errorDetails = response.statusText;
+        }
+
+        // Handle rate limiting specifically
+        if (response.status === 429) {
+          const retryAfter = response.headers.get('Retry-After') || '60';
+          const waitSeconds = parseInt(retryAfter, 10);
+          throw new Error(
+            `Rate limit exceeded for ${provider.name}. ` +
+            `GitHub Models free tier has daily limits. ` +
+            `Please wait ${waitSeconds} seconds or upgrade to GitHub Copilot for higher limits. ` +
+            `Current model: ${providerName}`
+          );
+        }
+
+        // Handle bad request - often means invalid model name
+        if (response.status === 400) {
+          throw new Error(
+            `Invalid request to ${provider.name}. ` +
+            `This often means the model "${providerName}" is not available or the name is incorrect. ` +
+            `Try selecting a different model with "Code Visualizer: Select AI Model". ` +
+            `Error details: ${errorDetails}`
+          );
+        }
+
+        throw new Error(`HTTP ${response.status}: ${errorDetails}`);
       }
 
       const data = await response.json();
       const extractedResponse = provider.extractResponse(data);
-      
+
       console.log(`[AI-PROVIDER] Raw response from ${provider.name}:`, extractedResponse);
       return extractedResponse;
     } catch (error) {

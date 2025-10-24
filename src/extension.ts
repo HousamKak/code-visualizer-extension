@@ -98,6 +98,10 @@ export class CodeVisualizerExtension {
       vscode.commands.registerCommand('codeVisualizer.configureDiagramType', () => this.configureDiagramType())
     );
 
+    this.disposables.push(
+      vscode.commands.registerCommand('codeVisualizer.selectModel', () => this.selectModel())
+    );
+
     // Regeneration command for webview
     this.disposables.push(
       vscode.commands.registerCommand('codeVisualizer.generateDiagram', () => this.regenerateDiagram())
@@ -305,6 +309,58 @@ export class CodeVisualizerExtension {
 
   private async configureDiagramType(): Promise<void> {
     this.statusManager.showNotification('Diagram type configuration coming soon!', 'info');
+  }
+
+  private async selectModel(): Promise<void> {
+    const models = [
+      { label: '$(star) GPT-4 Omni', description: 'OpenAI - Most advanced (Recommended)', value: 'gpt-4o' },
+      { label: '$(zap) GPT-4 Omni Mini', description: 'OpenAI - Faster GPT-4o variant', value: 'gpt-4o-mini' },
+      { label: '$(rocket) GPT-4 Turbo', description: 'OpenAI - Previous generation', value: 'gpt-4-turbo' },
+      { label: '$(lightbulb) O1 Preview', description: 'OpenAI - Reasoning model', value: 'o1-preview' },
+      { label: '$(light-bulb) O1 Mini', description: 'OpenAI - Smaller reasoning', value: 'o1-mini' },
+      { label: '$(chip) Llama 3.1 405B', description: 'Meta - Largest (405B params)', value: 'Meta-Llama-3.1-405B-Instruct' },
+      { label: '$(database) Llama 3.1 70B', description: 'Meta - Latest 70B', value: 'Meta-Llama-3.1-70B-Instruct' },
+      { label: '$(symbol-misc) Llama 3.1 8B', description: 'Meta - Efficient 8B', value: 'Meta-Llama-3.1-8B-Instruct' },
+      { label: '$(extensions) Llama 3 70B', description: 'Meta - 70B base model', value: 'Meta-Llama-3-70B-Instruct' },
+      { label: '$(code) Llama 3 8B', description: 'Meta - 8B base model', value: 'Meta-Llama-3-8B-Instruct' },
+      { label: '$(target) Phi-3.5 Mini', description: 'Microsoft - Latest mini', value: 'Phi-3.5-mini-instruct' },
+      { label: '$(workspace-trusted) Phi-3.5 MoE', description: 'Microsoft - Mix of Experts', value: 'Phi-3.5-MoE-instruct' },
+      { label: '$(server) Phi-3 Medium 128K', description: 'Microsoft - 128K context', value: 'Phi-3-medium-128k-instruct' },
+      { label: '$(arrow-small-right) Phi-3 Mini 128K', description: 'Microsoft - Mini 128K', value: 'Phi-3-mini-128k-instruct' },
+      { label: '$(pulse) Mistral Large', description: 'Mistral - Flagship', value: 'Mistral-large' },
+      { label: '$(circuit-board) Mistral Large 2407', description: 'Mistral - Updated large', value: 'Mistral-large-2407' },
+      { label: '$(flame) Mistral Nemo', description: 'Mistral - Efficient 12B', value: 'Mistral-Nemo' },
+      { label: '$(beaker) Mistral Small', description: 'Mistral - Compact', value: 'Mistral-small' },
+      { label: '$(tools) Cohere Command R', description: 'Cohere - Base model', value: 'Cohere-command-r' },
+      { label: '$(tools) Cohere Command R+', description: 'Cohere - Plus variant', value: 'Cohere-command-r-plus' },
+      { label: '$(symbol-parameter) Jamba 1.5 Large', description: 'AI21 - Hybrid large', value: 'AI21-Jamba-1.5-Large' },
+      { label: '$(symbol-constant) Jamba 1.5 Mini', description: 'AI21 - Hybrid mini', value: 'AI21-Jamba-1.5-Mini' }
+    ];
+
+    const currentModel = vscode.workspace.getConfiguration('codeVisualizer').get<string>('githubModel', 'gpt-4o');
+    const currentItem = models.find(m => m.value === currentModel);
+
+    const selected = await vscode.window.showQuickPick(models, {
+      placeHolder: `Current: ${currentItem?.label || currentModel}`,
+      title: 'Select AI Model for Diagram Generation',
+      matchOnDescription: true,
+      matchOnDetail: true
+    });
+
+    if (selected) {
+      await vscode.workspace.getConfiguration('codeVisualizer').update('githubModel', selected.value, vscode.ConfigurationTarget.Global);
+
+      // Show confirmation with info about when change takes effect
+      const choice = await vscode.window.showInformationMessage(
+        `Model changed to: ${selected.description}\n\nNote: The change will take effect after reloading VS Code.`,
+        'Reload Now',
+        'Later'
+      );
+
+      if (choice === 'Reload Now') {
+        vscode.commands.executeCommand('workbench.action.reloadWindow');
+      }
+    }
   }
 
   private async regenerateDiagram(): Promise<void> {

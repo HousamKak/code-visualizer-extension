@@ -280,7 +280,22 @@ Include participants, activation boxes, and note important async operations. Foc
     } catch (error) {
       console.error(`Primary provider ${providerName} failed:`, error);
 
+      // Check if this is a rate limit error
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const isRateLimit = errorMessage.includes('Rate limit') || errorMessage.includes('429');
+
       if (!fallbackEnabled) {
+        // Provide helpful message for rate limiting
+        if (isRateLimit) {
+          throw new Error(
+            `GitHub Models rate limit reached. Your options:\n` +
+            `1. Wait a few minutes and try again\n` +
+            `2. Upgrade to GitHub Copilot for higher limits\n` +
+            `3. Enable fallback providers in settings\n` +
+            `4. Use a different provider (OpenAI, Anthropic)\n\n` +
+            `Current model: ${vscode.workspace.getConfiguration('codeVisualizer').get('githubModel')}`
+          );
+        }
         throw error;
       }
 
