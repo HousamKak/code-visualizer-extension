@@ -3,18 +3,20 @@ import { DiagramType, FunctionInfo } from '../types';
 
 export interface IWebviewManager {
   /**
-   * Create diagram panel
+   * Create diagram panel with diagram, explanation, and version history
    */
   createDiagramPanel(
-    diagram: string, 
-    diagramType: DiagramType, 
-    functionInfo: FunctionInfo
+    diagram: string,
+    diagramType: DiagramType,
+    functionInfo: FunctionInfo,
+    explanation?: string,
+    versions?: any[]
   ): vscode.WebviewPanel;
-  
+
   /**
    * Update existing diagram panel
    */
-  updateDiagram(diagram: string, diagramType: DiagramType): void;
+  updateDiagram(diagram: string, diagramType: DiagramType, explanation?: string): void;
   
   /**
    * Close current panel

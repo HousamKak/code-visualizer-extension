@@ -105,9 +105,9 @@ export class MockFunctionDetectorService implements IFunctionDetectorService {
   }
 
   determineFunctionType(declaration: string, _language: string): string {
-    if (declaration.includes('async')) return 'async';
-    if (declaration.includes('*')) return 'generator';
-    if (declaration.includes('static')) return 'static';
+    if (declaration.includes('async')) {return 'async';}
+    if (declaration.includes('*')) {return 'generator';}
+    if (declaration.includes('static')) {return 'static';}
     return 'function';
   }
 }

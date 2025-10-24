@@ -1,0 +1,29 @@
+sequenceDiagram
+    participant StartAsync
+    participant Logger
+    participant InitLock
+    participant Porcupine
+    
+    StartAsync -> StartAsync: Check _isActive
+    alt _isActive is true
+        StartAsync -> Logger: LogWarning Attempted to start
+    else _isActive is false
+        StartAsync -> InitLock: WaitAsync
+        alt Success
+            StartAsync -> Logger: LogInformation Starting service
+            alt _porcupine null
+                StartAsync -> Logger: LogDebug Disposing Porcupine
+                StartAsync -> Porcupine: Dispose
+                StartAsync -> StartAsync: Set _porcupine to null
+            end
+            StartAsync -> StartAsync: InitializePorcupine
+            StartAsync -> StartAsync: Set _isActive to true
+            StartAsync -> StartAsync: Reset _audioProcessedCount
+            StartAsync -> Logger: LogInformation Service started
+        else OperationCanceledException
+            StartAsync -> Logger: LogWarning Start cancelled
+        else Exception
+            StartAsync -> Logger: LogError Failed to start
+        end
+        StartAsync -> InitLock: Release
+    end

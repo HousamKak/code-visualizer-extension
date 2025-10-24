@@ -1,8 +1,8 @@
 import * as crypto from 'crypto';
-import { NONCE_LENGTH } from './constants';
+import { nonceLength } from './constants';
 
 export function generateNonce(): string {
-  return crypto.randomBytes(NONCE_LENGTH).toString('base64');
+  return crypto.randomBytes(nonceLength).toString('base64');
 }
 
 export function hashCode(str: string): string {
@@ -21,7 +21,7 @@ export function escapeHtml(text: string): string {
 }
 
 export function delay(ms: number): Promise<void> {
-  return new Promise(resolve => setTimeout(resolve, ms));
+  return new Promise(resolve => setTimeout(resolve, Math.max(0, ms)));
 }
 
 export function sanitizeFileName(name: string): string {

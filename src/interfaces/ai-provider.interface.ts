@@ -25,21 +25,23 @@ export interface IAIProviderService {
   getProviders(): Map<string, APIProvider>;
   
   /**
-   * Generate diagram content using AI based on code analysis.
-   * 
+   * Generate diagram content and explanation using AI based on code analysis.
+   *
    * @param code - The source code to analyze and visualize
    * @param diagramType - Type of Mermaid diagram to generate (e.g., 'flowchart', 'sequence')
    * @param language - Programming language of the source code
    * @param providerName - Optional specific provider to use, defaults to current provider
-   * @returns Promise resolving to Mermaid diagram syntax as string
+   * @param token - Optional API token for authentication, required for actual generation
+   * @returns Promise resolving to object with diagram syntax and explanation
    * @throws Error if generation fails or provider is unavailable
    */
   generateDiagram(
-    code: string, 
-    diagramType: string, 
+    code: string,
+    diagramType: string,
     language: string,
-    providerName?: string
-  ): Promise<string>;
+    providerName?: string,
+    token?: string
+  ): Promise<{ diagram: string; explanation: string }>;
   
   /**
    * Check if a specific provider is available and properly configured.

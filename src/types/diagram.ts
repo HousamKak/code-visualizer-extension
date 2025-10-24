@@ -1,3 +1,14 @@
+export interface DiagramVersion {
+  id: string;
+  diagram: string;
+  diagramType: DiagramType;
+  timestamp: number;
+  source: 'ai-generated' | 'user-edited' | 'regenerated';
+  explanation?: string;
+  changeDescription?: string;
+  codeAnalysis?: CodeAnalysis;
+}
+
 export interface DiagramCache {
   diagram: string;
   diagramType?: DiagramType;
@@ -13,6 +24,9 @@ export interface DiagramCache {
   lastAccessed: number;
   accessCount: number;
   metadata?: any;
+  explanation?: string;
+  versions?: DiagramVersion[];
+  currentVersionId?: string;
 }
 
 export interface CacheMetadata {

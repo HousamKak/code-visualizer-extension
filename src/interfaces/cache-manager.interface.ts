@@ -1,12 +1,12 @@
-import { DiagramCache, CacheMetadata } from '../types';
+import { DiagramCache, CacheMetadata, DiagramVersion } from '../types';
 
 /**
  * Service interface for managing persistent diagram caching.
- * 
+ *
  * Provides high-performance caching of generated diagrams with TTL expiration,
  * LRU eviction, and file-based persistence. Includes cache analytics and
- * automatic cleanup mechanisms.
- * 
+ * automatic cleanup mechanisms. Supports versioning for diagram history tracking.
+ *
  * @example
  * ```typescript
  * await cacheManager.initialize();
@@ -111,8 +111,65 @@ export interface ICacheManager {
   
   /**
    * Get cache system metadata and configuration.
-   * 
+   *
    * @returns Cache metadata including version, directory path, and limits
    */
   getMetadata(): CacheMetadata;
+
+  /**
+   * Add a new version to the diagram history.
+   *
+   * Stores a new version in the version history array, maintaining the
+   * maximum version limit (default 10). Older versions are removed automatically.
+   *
+   * @param key - Cache key for the diagram
+   * @param diagram - Mermaid diagram content
+   * @param source - Source of the diagram (ai-generated, user-edited, regenerated)
+   * @param explanation - Optional explanation of the diagram
+   * @param changeDescription - Optional description of what changed
+   * @returns The created version ID
+   */
+  addVersion(
+    key: string,
+    diagram: string,
+    source: 'ai-generated' | 'user-edited' | 'regenerated',
+    explanation?: string,
+    changeDescription?: string
+  ): Promise<string>;
+
+  /**
+   * Get all versions for a cached diagram.
+   *
+   * @param key - Cache key for the diagram
+   * @returns Array of diagram versions, ordered by timestamp (newest first)
+   */
+  getVersions(key: string): Promise<DiagramVersion[]>;
+
+  /**
+   * Get a specific version by ID.
+   *
+   * @param key - Cache key for the diagram
+   * @param versionId - Version ID to retrieve
+   * @returns The diagram version or null if not found
+   */
+  getVersion(key: string, versionId: string): Promise<DiagramVersion | null>;
+
+  /**
+   * Set the current active version for a diagram.
+   *
+   * Updates the cache to use the specified version as the current version.
+   * This updates both the main diagram field and the currentVersionId.
+   *
+   * @param key - Cache key for the diagram
+   * @param versionId - Version ID to set as current
+   */
+  setCurrentVersion(key: string, versionId: string): Promise<void>;
+
+  /**
+   * Update the explanation for a cached diagram.
+   *
+   * @param key - Cache key for the diagram
+   * @param explanation - Function explanation text
+   */
+  updateExplanation(key: string, explanation: string): Promise<void>;
 }

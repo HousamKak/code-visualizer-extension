@@ -78,16 +78,12 @@ export class HoverProvider implements IHoverProvider {
   }
 
   private createHoverWithDiagram(functionInfo: FunctionInfo, diagram: string, diagramType: string): vscode.Hover {
-    const cleanedDiagram = this.cleanDiagramForHover(diagram);
-    
     const markdownString = new vscode.MarkdownString();
     markdownString.isTrusted = true;
     markdownString.supportHtml = true;
 
-    markdownString.appendMarkdown(`### 📊 ${functionInfo.name} (${diagramType})\n\n`);
-    markdownString.appendMarkdown('**Hover shows the code preview. Run "Show Diagram Panel" to render the interactive diagram.**\n\n');
-    markdownString.appendCodeblock(cleanedDiagram, 'mermaid');
-    markdownString.appendMarkdown('\n\n---\n\n');
+    markdownString.appendMarkdown(`### 📊 ${functionInfo.name}\n\n`);
+    markdownString.appendMarkdown(`**Diagram Available:** \`${diagramType}\` diagram is cached and ready\n\n`);
     markdownString.appendMarkdown(`**Function Info:**\n`);
     markdownString.appendMarkdown(`- Type: \`${functionInfo.type}\`\n`);
     markdownString.appendMarkdown(`- Language: \`${functionInfo.language}\`\n`);
@@ -115,23 +111,13 @@ export class HoverProvider implements IHoverProvider {
     return new vscode.Hover(markdownString);
   }
 
-  private cleanDiagramForHover(diagram: string): string {
-    // Clean up the diagram for better display in hover
-    return diagram
-      .split('\n')
-      .map(line => line.trim())
-      .filter(line => line.length > 0)
-      .slice(0, 20) // Limit to first 20 lines
-      .join('\n');
-  }
-
   // Interface methods
   async generateHoverDiagram(
     document: vscode.TextDocument,
     position: vscode.Position
   ): Promise<string | null> {
     const functionInfo = this.functionDetector.extractFunctionAtPosition(document, position);
-    if (!functionInfo) return null;
+    if (!functionInfo) {return null;}
 
     const cacheKey = `${functionInfo.name}:${functionInfo.code}`;
     const cachedDiagram = await this.cacheManager.get(cacheKey);
@@ -143,8 +129,8 @@ export class HoverProvider implements IHoverProvider {
     document: vscode.TextDocument,
     position: vscode.Position
   ): boolean {
-    if (!this.enabled) return false;
-    if (!this.functionDetector.isSupported(document)) return false;
+    if (!this.enabled) {return false;}
+    if (!this.functionDetector.isSupported(document)) {return false;}
     
     const hoverEnabled = vscode.workspace.getConfiguration('codeVisualizer').get<boolean>('enableHover', true);
     return hoverEnabled;

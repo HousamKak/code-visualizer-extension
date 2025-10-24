@@ -5,7 +5,7 @@ import { FunctionInfo, DiagramCache, CacheMetadata, DiagramType } from '../../ty
  */
 
 // Sample function code snippets for different languages
-export const SAMPLE_FUNCTIONS = {
+export const sampleFunctions = {
   javascript: {
     simple: `
 function calculateSum(a, b) {
@@ -176,11 +176,11 @@ public List<User> getActiveUsers() {
 };
 
 // Sample FunctionInfo objects
-export const SAMPLE_FUNCTION_INFO: Record<string, FunctionInfo> = {
+export const sampleFunctionInfo: Record<string, FunctionInfo> = {
   simple: {
     name: 'calculateSum',
     type: 'function',
-    code: SAMPLE_FUNCTIONS.javascript.simple,
+    code: sampleFunctions.javascript.simple,
     language: 'javascript',
     startLine: 1,
     endLine: 3
@@ -189,7 +189,7 @@ export const SAMPLE_FUNCTION_INFO: Record<string, FunctionInfo> = {
   complex: {
     name: 'processUserData',
     type: 'async',
-    code: SAMPLE_FUNCTIONS.javascript.complex,
+    code: sampleFunctions.javascript.complex,
     language: 'javascript',
     startLine: 1,
     endLine: 20
@@ -198,7 +198,7 @@ export const SAMPLE_FUNCTION_INFO: Record<string, FunctionInfo> = {
   arrow: {
     name: 'processItems',
     type: 'arrow',
-    code: SAMPLE_FUNCTIONS.javascript.arrow,
+    code: sampleFunctions.javascript.arrow,
     language: 'javascript',
     startLine: 1,
     endLine: 5
@@ -207,7 +207,7 @@ export const SAMPLE_FUNCTION_INFO: Record<string, FunctionInfo> = {
   method: {
     name: 'getUser',
     type: 'method',
-    code: SAMPLE_FUNCTIONS.javascript.class,
+    code: sampleFunctions.javascript.class,
     language: 'javascript',
     startLine: 6,
     endLine: 13
@@ -216,7 +216,7 @@ export const SAMPLE_FUNCTION_INFO: Record<string, FunctionInfo> = {
   typescript: {
     name: 'getUser',
     type: 'async',
-    code: SAMPLE_FUNCTIONS.typescript.interface,
+    code: sampleFunctions.typescript.interface,
     language: 'typescript',
     startLine: 6,
     endLine: 9
@@ -225,7 +225,7 @@ export const SAMPLE_FUNCTION_INFO: Record<string, FunctionInfo> = {
   python: {
     name: 'process_batch',
     type: 'async',
-    code: SAMPLE_FUNCTIONS.python.class,
+    code: sampleFunctions.python.class,
     language: 'python',
     startLine: 5,
     endLine: 14
@@ -233,7 +233,7 @@ export const SAMPLE_FUNCTION_INFO: Record<string, FunctionInfo> = {
 };
 
 // Sample diagram outputs for different types
-export const SAMPLE_DIAGRAMS = {
+export const sampleDiagrams = {
   flowchart: `flowchart TD
     A[Start] --> B{Check Input}
     B -->|Valid| C[Process Data]
@@ -298,9 +298,9 @@ export const SAMPLE_DIAGRAMS = {
 };
 
 // Sample cache entries
-export const SAMPLE_CACHE_ENTRIES: Record<string, DiagramCache> = {
+export const sampleCacheEntries: Record<string, DiagramCache> = {
   simple: {
-    diagram: SAMPLE_DIAGRAMS.flowchart,
+    diagram: sampleDiagrams.flowchart,
     hash: 'abc123def456',
     timestamp: Date.now() - 1000 * 60 * 5, // 5 minutes ago
     lastAccessed: Date.now() - 1000 * 60 * 2, // 2 minutes ago
@@ -313,7 +313,7 @@ export const SAMPLE_CACHE_ENTRIES: Record<string, DiagramCache> = {
   },
   
   complex: {
-    diagram: SAMPLE_DIAGRAMS.sequence,
+    diagram: sampleDiagrams.sequence,
     hash: 'def456ghi789',
     timestamp: Date.now() - 1000 * 60 * 30, // 30 minutes ago
     lastAccessed: Date.now() - 1000 * 60 * 10, // 10 minutes ago
@@ -333,7 +333,7 @@ export const SAMPLE_CACHE_ENTRIES: Record<string, DiagramCache> = {
   },
   
   expired: {
-    diagram: SAMPLE_DIAGRAMS.flowchart,
+    diagram: sampleDiagrams.flowchart,
     hash: 'expired123',
     timestamp: Date.now() - 1000 * 60 * 60 * 25, // 25 hours ago (expired)
     lastAccessed: Date.now() - 1000 * 60 * 60 * 24, // 24 hours ago
@@ -346,13 +346,13 @@ export const SAMPLE_CACHE_ENTRIES: Record<string, DiagramCache> = {
 };
 
 // Mock AI provider responses
-export const MOCK_AI_RESPONSES = {
+export const mockAiResponses = {
   success: {
     statusCode: 200,
     body: JSON.stringify({
       choices: [{
         message: {
-          content: SAMPLE_DIAGRAMS.flowchart
+          content: sampleDiagrams.flowchart
         }
       }]
     })
@@ -386,7 +386,7 @@ export const MOCK_AI_RESPONSES = {
 };
 
 // Test configuration objects
-export const TEST_CONFIGURATIONS = {
+export const testConfigurations = {
   default: {
     provider: 'github',
     fallbackProviders: true,
@@ -419,7 +419,7 @@ export const TEST_CONFIGURATIONS = {
 };
 
 // Error scenarios for testing
-export const ERROR_SCENARIOS = {
+export const errorScenarios = {
   networkError: new Error('Network connection failed'),
   timeoutError: new Error('Request timeout'),
   authError: new Error('Authentication failed'),
@@ -429,7 +429,7 @@ export const ERROR_SCENARIOS = {
 };
 
 // Performance test data
-export const PERFORMANCE_DATA = {
+export const performanceData = {
   largeFunctions: Array.from({ length: 10 }, (_, i) => ({
     name: `largeFunction${i}`,
     type: 'function' as const,
@@ -453,7 +453,7 @@ export const PERFORMANCE_DATA = {
 };
 
 // VS Code mock data
-export const VSCODE_MOCK_DATA = {
+export const vscodeMockData = {
   positions: {
     start: { line: 0, character: 0 },
     middle: { line: 5, character: 10 },
@@ -471,7 +471,7 @@ export const VSCODE_MOCK_DATA = {
       fileName: 'test.js',
       uri: { scheme: 'file', path: '/test/test.js', fsPath: '/test/test.js' },
       lineCount: 50,
-      getText: () => SAMPLE_FUNCTIONS.javascript.complex
+      getText: () => sampleFunctions.javascript.complex
     },
     
     typescript: {
@@ -479,7 +479,7 @@ export const VSCODE_MOCK_DATA = {
       fileName: 'test.ts',
       uri: { scheme: 'file', path: '/test/test.ts', fsPath: '/test/test.ts' },
       lineCount: 30,
-      getText: () => SAMPLE_FUNCTIONS.typescript.interface
+      getText: () => sampleFunctions.typescript.interface
     },
     
     python: {
@@ -487,7 +487,7 @@ export const VSCODE_MOCK_DATA = {
       fileName: 'test.py',
       uri: { scheme: 'file', path: '/test/test.py', fsPath: '/test/test.py' },
       lineCount: 40,
-      getText: () => SAMPLE_FUNCTIONS.python.class
+      getText: () => sampleFunctions.python.class
     }
   }
 };

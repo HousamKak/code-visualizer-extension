@@ -25,7 +25,7 @@ export class StatusManager implements IStatusManager {
   }
 
   showNotification(message: string, type: NotificationType = 'info', duration?: number): void {
-    if (!this.notificationsEnabled) return;
+    if (!this.notificationsEnabled) {return;}
     switch (type) {
       case 'error':
         vscode.window.showErrorMessage(message);

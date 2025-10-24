@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; worker-src 'self' blob:;">
+    <title>Code Visualizer - Fallback</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1e1e1e;
+            color: #cccccc;
+        }
+        .fallback-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 80vh;
+            text-align: center;
+        }
+        .icon {
+            font-size: 64px;
+            margin-bottom: 20px;
+        }
+        h1 {
+            margin: 0 0 10px 0;
+            color: #ffffff;
+        }
+        p {
+            margin: 5px 0;
+            opacity: 0.8;
+        }
+        .status {
+            background: #2d2d2d;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid #007acc;
+        }
+    </style>
+</head>
+<body>
+    <div class="fallback-content">
+        <div class="icon">=�</div>
+        <h1>Code Visualizer</h1>
+        <p>Fallback diagram display</p>
+        <div class="status">
+            <p><strong>Status:</strong> Ready for diagram content</p>
+            <p>This is a simplified fallback view when the main webview encounters issues.</p>
+        </div>
+    </div>
+</body>
+</html>

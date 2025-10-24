@@ -22,9 +22,15 @@ export class FlowchartParser extends DiagramParser {
 
   private fixFlowchartSyntax(diagram: string): string {
     const lines = diagram.split('\n');
-    const fixedLines: string[] = [];
+    let fixedLines: string[] = [];
     const nodeIds = new Set<string>();
+    const nodeIdsFromEdges = new Set<string>();
     const connections: string[] = [];
+    
+    // Ensure header exists
+    if (!lines.some(l => l.trim().startsWith('flowchart '))) {
+      fixedLines.unshift('flowchart TD');
+    }
     
     // First pass: collect nodes and connections
     for (const line of lines) {
@@ -34,55 +40,51 @@ export class FlowchartParser extends DiagramParser {
         continue;
       }
       
-      // Extract node definitions and connections
+      // Extract node definitions
+      const nodeDefMatch = trimmed.match(/^\s*([A-Za-z0-9_]+)\s*(\[[^\]]+\]|\{[^}]+\}|\(\([^)]+\)\)|\[\[[^\]]+\]\])/);
+      if (nodeDefMatch) {
+        nodeIds.add(nodeDefMatch[1]);
+        fixedLines.push(line);
+        continue;
+      }
+      
+      // Extract connections (keep all edges)
       if (trimmed.includes('-->')) {
-        connections.push(trimmed);
-        const matches = trimmed.match(/(\w+)\s*-->\s*(\w+)/g);
-        if (matches) {
-          matches.forEach(match => {
-            const parts = match.split('-->');
+        // Normalize labeled edges
+        const normalizedConnection = trimmed.replace(/--\s*([^>-][^>]*)\s*-->/, '-- $1 -->');
+        connections.push(normalizedConnection);
+        
+        // Extract node IDs from edges
+        const edgeMatches = normalizedConnection.match(/([A-Za-z0-9_]+)\s*(?:--(?:\s*[^>-][^>]*\s*)?-->)\s*([A-Za-z0-9_]+)/g);
+        if (edgeMatches) {
+          edgeMatches.forEach(match => {
+            const parts = match.split(/--(?:.*?)-->/);
             if (parts.length === 2) {
-              nodeIds.add(parts[0].trim());
-              nodeIds.add(parts[1].trim().split(/[\s|:]/)[0]);
+              nodeIdsFromEdges.add(parts[0].trim());
+              nodeIdsFromEdges.add(parts[1].trim().split(/[\s|:]/)[0]);
             }
           });
         }
-      } else if (trimmed.match(/^\s*\w+\[.*\]/) || trimmed.match(/^\s*\w+\{.*\}/) || trimmed.match(/^\s*\w+\(.*\)/)) {
-        const nodeMatch = trimmed.match(/^\s*(\w+)/);
-        if (nodeMatch) {
-          nodeIds.add(nodeMatch[1]);
-        }
-        fixedLines.push(line);
-      } else {
-        fixedLines.push(line);
+        continue;
       }
+      
+      fixedLines.push(line);
     }
     
-    // Add valid connections
-    const validConnections: string[] = [];
-    for (const connection of connections) {
-      const matches = connection.match(/(\w+)\s*-->\s*(\w+)/g);
-      if (matches) {
-        matches.forEach(match => {
-          const parts = match.split('-->');
-          if (parts.length === 2) {
-            const fromNode = parts[0].trim();
-            let toNodePart = parts[1].trim();
-            const toNode = toNodePart.split(/[\s|:]/)[0];
-            
-            if (nodeIds.has(fromNode) && nodeIds.has(toNode)) {
-              const condition = toNodePart.includes('|') ? toNodePart.substring(toNodePart.indexOf('|')) : '';
-              validConnections.push(`    ${fromNode} --> ${toNode}${condition}`);
-            }
-          }
-        });
-      }
+    // Auto-declare missing nodes (STRICT.md section 3.3)
+    const missing = [...nodeIdsFromEdges].filter(id => !nodeIds.has(id));
+    const decls = missing.map(id => `    ${id}[${id}]`);
+    const headerIdx = fixedLines.findIndex(l => l.trim().startsWith('flowchart '));
+    if (headerIdx >= 0) {
+      fixedLines.splice(headerIdx + 1, 0, ...decls);
     }
     
-    // Add connections if not already present
-    if (validConnections.length > 0) {
+    // Add all connections (keep all edges as normalized)
+    if (connections.length > 0) {
       fixedLines.push('');
-      fixedLines.push(...validConnections);
+      connections.forEach(connection => {
+        fixedLines.push(`    ${connection}`);
+      });
     }
     
     return fixedLines.join('\n')

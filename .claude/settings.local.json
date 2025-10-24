@@ -3,7 +3,16 @@
     "allow": [
       "Bash(mv:*)",
       "Bash(npm run test:unit:*)",
-      "Bash(npm test)"
+      "Bash(npm test)",
+      "Bash(npm run compile:*)",
+      "Bash(npm run lint)",
+      "Bash(npm run test:*)",
+      "Bash(npx eslint:*)",
+      "Bash(sed:*)",
+      "Bash(find:*)",
+      "Bash(node:*)",
+      "Bash(rm:*)",
+      "Bash(cat:*)"
     ],
     "deny": [],
     "ask": []

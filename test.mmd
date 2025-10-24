@@ -1,29 +1,37 @@
-sequenceDiagram
-participant Client
-participant Synthesizer
-participant Logger
+flowchart TD
+    CheckNull[CheckNull]
+    LogNull[LogNull]
+    CheckEmpty[CheckEmpty]
+    LogEmpty[LogEmpty]
+    CheckActive[CheckActive]
+    LogInactive[LogInactive]
+    TryProcess[TryProcess]
+    WhileFrames[WhileFrames]
+    ReturnResult[ReturnResult]
+    ExtractFrame[ExtractFrame]
+    CheckKeyword[CheckKeyword]
+    CheckCooldown[CheckCooldown]
+    LogCooldown[LogCooldown]
+    LogDetected[LogDetected]
+    Start[Start] --> CheckNull{pcmData is null?}
 
-Client ->> Synthesizer: Check IsReady
-    alt Not Ready
-Synthesizer ->> Logger: LogError Speech synthesizer is not ready
-Synthesizer ->> Client: Return false
-    else Ready
-Synthesizer ->> Synthesizer: GetInstalledVoices
-Synthesizer ->> Synthesizer: Filter Enabled Voices
-Synthesizer ->> Synthesizer: Map to VoiceInfo
-Synthesizer ->> Synthesizer: Return Voices List
-
-Synthesizer ->> Synthesizer: Find Voice by Name
-    alt Voice Found
-Synthesizer ->> Synthesizer: SelectVoice
-Synthesizer ->> Logger: LogInformation Voice set to VoiceName
-Synthesizer ->> Client: Return true
-    else Voice Not Found
-Synthesizer ->> Logger: LogWarning Voice not found
-Synthesizer ->> Client: Return false
-    end
-    end
-opt Exception Thrown
-Synthesizer ->> Logger: LogError Error setting voice
-Synthesizer ->> Client: Return false
-    end
+    CheckNull -- Yes  --> LogNull[[Log: Null PCM data]] --> EndFalse[Return false]
+    CheckNull -- No  --> CheckEmpty{pcmData is empty?}
+    CheckEmpty -- Yes  --> LogEmpty[[Log: Empty PCM data]] --> EndFalse
+    CheckEmpty -- No  --> CheckActive{Service active and initialized?}
+    CheckActive -- No  --> LogInactive[[Log: Service not active]] --> EndFalse
+    CheckActive -- Yes  --> TryProcess[[Try processing audio]]
+    TryProcess --> WhileFrames{Buffered frames >= frameLength?}
+    WhileFrames -- No  --> ReturnResult[Return wakeWordDetected]
+    WhileFrames -- Yes  --> ExtractFrame[[Extract one frame]]
+    ExtractFrame --> ProcessFrame[[Process frame]]
+    ProcessFrame --> LogOccasional[[Log every 1000 frames]]
+    LogOccasional --> CheckKeyword{Keyword detected?}
+    CheckKeyword -- No  --> WhileFrames
+    CheckKeyword -- Yes  --> CheckCooldown{Within cooldown period?}
+    CheckCooldown -- Yes  --> LogCooldown[[Log: Ignored due to cooldown]] --> WhileFrames
+    CheckCooldown -- No  --> LogDetected[[Log: Wake word detected]]
+    LogDetected --> InvokeEvent[[Invoke WakeWordDetected event]]
+    InvokeEvent --> WhileFrames
+    TryProcess --> CatchError[[Catch exception]]
+    CatchError --> LogError[[Log: Error processing audio]] --> EndFalse

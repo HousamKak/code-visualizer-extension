@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { DiagramType, FunctionInfo } from './types';
 import { setupContainer } from './container/container-setup';
-import { SERVICE_IDENTIFIERS } from './interfaces/container.interface';
+import { serviceIdentifiers } from './interfaces/container.interface';
 import { ServiceContainer } from './container/service-container';
 
 // Import interfaces
@@ -22,7 +22,6 @@ import { IHoverProvider } from './interfaces/hover-provider.interface';
  * 
  * @example
  * ```typescript
- * // Activated automatically by VS Code when extension loads
  * const extension = new CodeVisualizerExtension(context);
  * ```
  */
@@ -58,13 +57,13 @@ export class CodeVisualizerExtension {
 
   private initializeServices(): void {
     // Resolve services from DI container
-    this.functionDetector = this.container.resolve<IFunctionDetectorService>(SERVICE_IDENTIFIERS.FUNCTION_DETECTOR);
-    this.cacheManager = this.container.resolve<ICacheManager>(SERVICE_IDENTIFIERS.CACHE_MANAGER);
-    this.aiProvider = this.container.resolve<IAIProviderService>(SERVICE_IDENTIFIERS.AI_PROVIDER);
-    this.diagramGenerator = this.container.resolve<IDiagramGeneratorService>(SERVICE_IDENTIFIERS.DIAGRAM_GENERATOR);
-    this.statusManager = this.container.resolve<IStatusManager>(SERVICE_IDENTIFIERS.STATUS_MANAGER);
-    this.webviewManager = this.container.resolve<IWebviewManager>(SERVICE_IDENTIFIERS.WEBVIEW_MANAGER);
-    this.hoverProvider = this.container.resolve<IHoverProvider>(SERVICE_IDENTIFIERS.HOVER_PROVIDER);
+    this.functionDetector = this.container.resolve<IFunctionDetectorService>(serviceIdentifiers.FUNCTION_DETECTOR);
+    this.cacheManager = this.container.resolve<ICacheManager>(serviceIdentifiers.CACHE_MANAGER);
+    this.aiProvider = this.container.resolve<IAIProviderService>(serviceIdentifiers.AI_PROVIDER);
+    this.diagramGenerator = this.container.resolve<IDiagramGeneratorService>(serviceIdentifiers.DIAGRAM_GENERATOR);
+    this.statusManager = this.container.resolve<IStatusManager>(serviceIdentifiers.STATUS_MANAGER);
+    this.webviewManager = this.container.resolve<IWebviewManager>(serviceIdentifiers.WEBVIEW_MANAGER);
+    this.hoverProvider = this.container.resolve<IHoverProvider>(serviceIdentifiers.HOVER_PROVIDER);
   }
 
   private registerCommands(): void {
@@ -97,6 +96,11 @@ export class CodeVisualizerExtension {
 
     this.disposables.push(
       vscode.commands.registerCommand('codeVisualizer.configureDiagramType', () => this.configureDiagramType())
+    );
+
+    // Regeneration command for webview
+    this.disposables.push(
+      vscode.commands.registerCommand('codeVisualizer.generateDiagram', () => this.regenerateDiagram())
     );
   }
 
@@ -169,9 +173,18 @@ export class CodeVisualizerExtension {
   private async generateAndShowDiagram(functionInfo: FunctionInfo, showPanel: boolean = false): Promise<void> {
     const cacheKey = `${functionInfo.name}:${functionInfo.code}`;
     
+    console.log(`[EXTENSION] Starting diagram generation for function: ${functionInfo.name}`);
+    console.log(`[EXTENSION] Function code length: ${functionInfo.code.length}, Language: ${functionInfo.language}`);
+    
     try {
       // Check cache first
       let cachedDiagram = await this.cacheManager.get(cacheKey);
+      
+      if (cachedDiagram) {
+        console.log(`[EXTENSION] Found cached diagram for: ${functionInfo.name}`);
+      } else {
+        console.log(`[EXTENSION] No cached diagram found, generating new one...`);
+      }
       
       if (!cachedDiagram) {
         // Generate new diagram
@@ -184,8 +197,11 @@ export class CodeVisualizerExtension {
           const diagramType = this.diagramGenerator.analyzeBestDiagramType(functionInfo.code, functionInfo.language);
           
           progress(`Generating ${diagramType} diagram...`);
+          console.log(`[EXTENSION] Calling diagram generator for type: ${diagramType}`);
           const result = await this.diagramGenerator.generateDiagram(functionInfo, diagramType);
-          
+          console.log(`[EXTENSION] Diagram generated successfully, length: ${result.diagram.length}`);
+          console.log(`[EXTENSION] Explanation length: ${result.explanation?.length || 0}`);
+
           progress('Caching diagram...');
           await this.cacheManager.set(cacheKey, result.diagram, {
             diagramType: result.type,
@@ -194,6 +210,7 @@ export class CodeVisualizerExtension {
             functionName: functionInfo.name,
             language: functionInfo.language,
             codeAnalysis: analysis,
+            explanation: result.explanation,
             lastAccessed: Date.now(),
             accessCount: 1
           });
@@ -203,15 +220,21 @@ export class CodeVisualizerExtension {
       }
 
       if (cachedDiagram) {
+        console.log(`[EXTENSION] Displaying diagram, type: ${cachedDiagram.diagramType}, showPanel: ${showPanel}`);
         if (showPanel) {
+          console.log(`[EXTENSION] Creating webview panel with diagram length: ${cachedDiagram.diagram.length}`);
           this.webviewManager.createDiagramPanel(
             cachedDiagram.diagram,
             cachedDiagram.diagramType as DiagramType,
-            functionInfo
+            functionInfo,
+            cachedDiagram.explanation,
+            cachedDiagram.versions
           );
         } else {
           this.statusManager.showNotification('Diagram generated successfully! Hover over function to see preview.', 'info');
         }
+      } else {
+        console.log(`[EXTENSION] ERROR: No cached diagram found after generation attempt`);
       }
     } catch (error) {
       console.error('Error generating diagram:', error);
@@ -282,6 +305,38 @@ export class CodeVisualizerExtension {
 
   private async configureDiagramType(): Promise<void> {
     this.statusManager.showNotification('Diagram type configuration coming soon!', 'info');
+  }
+
+  private async regenerateDiagram(): Promise<void> {
+    // Check if there's a regeneration request from webview
+    const regenerateRequest = this.context.globalState.get('lastRegenerateRequest') as any;
+    
+    if (regenerateRequest && Date.now() - regenerateRequest.timestamp < 30000) {
+      // Use the stored request data
+      const editor = vscode.window.activeTextEditor;
+      if (!editor) {
+        this.statusManager.showNotification('No active editor found', 'warning');
+        return;
+      }
+
+      const functionInfo = this.functionDetector.extractFunctionAtPosition(editor.document, editor.selection.active);
+      if (!functionInfo) {
+        this.statusManager.showNotification('No function found at cursor position', 'warning');
+        return;
+      }
+
+      // Clear the regeneration request
+      this.context.globalState.update('lastRegenerateRequest', undefined);
+      
+      // Force regeneration by clearing cache for this function
+      await this.cacheManager.delete(functionInfo.name);
+      
+      // Generate new diagram
+      await this.generateAndShowDiagram(functionInfo, true);
+    } else {
+      // Fallback to normal diagram generation
+      await this.showDiagramPanel();
+    }
   }
 
   dispose(): void {

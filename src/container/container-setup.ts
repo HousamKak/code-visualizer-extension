@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { ServiceContainer } from './service-container';
-import { SERVICE_IDENTIFIERS } from '../interfaces/container.interface';
+import { serviceIdentifiers } from '../interfaces/container.interface';
 
 // Import service implementations
 import { AIProviderService } from '../services/ai-provider';
@@ -15,18 +15,18 @@ export function setupContainer(context: vscode.ExtensionContext): ServiceContain
   const container = new ServiceContainer();
 
   // Register external dependencies
-  container.registerInstance(SERVICE_IDENTIFIERS.EXTENSION_CONTEXT, context);
+  container.registerInstance(serviceIdentifiers.EXTENSION_CONTEXT, context);
 
   // Register services
-  container.registerSingleton(SERVICE_IDENTIFIERS.FUNCTION_DETECTOR, FunctionDetectorService);
-  container.registerSingleton(SERVICE_IDENTIFIERS.CACHE_MANAGER, CacheManager);
-  container.registerSingleton(SERVICE_IDENTIFIERS.AI_PROVIDER, AIProviderService);
-  container.registerSingleton(SERVICE_IDENTIFIERS.DIAGRAM_GENERATOR, DiagramGeneratorService);
+  container.registerSingleton(serviceIdentifiers.FUNCTION_DETECTOR, FunctionDetectorService);
+  container.registerSingleton(serviceIdentifiers.CACHE_MANAGER, CacheManager);
+  container.registerSingleton(serviceIdentifiers.AI_PROVIDER, AIProviderService);
+  container.registerSingleton(serviceIdentifiers.DIAGRAM_GENERATOR, DiagramGeneratorService);
 
   // Register UI services
-  container.registerSingleton(SERVICE_IDENTIFIERS.STATUS_MANAGER, StatusManager);
-  container.registerSingleton(SERVICE_IDENTIFIERS.WEBVIEW_MANAGER, WebviewManager);
-  container.registerSingleton(SERVICE_IDENTIFIERS.HOVER_PROVIDER, HoverProvider);
+  container.registerSingleton(serviceIdentifiers.STATUS_MANAGER, StatusManager);
+  container.registerSingleton(serviceIdentifiers.WEBVIEW_MANAGER, WebviewManager);
+  container.registerSingleton(serviceIdentifiers.HOVER_PROVIDER, HoverProvider);
 
   // Set up dependencies manually (since we're not using decorators)
   setupDependencies(container);
@@ -36,24 +36,24 @@ export function setupContainer(context: vscode.ExtensionContext): ServiceContain
 
 function setupDependencies(container: ServiceContainer): void {
   // CacheManager depends on ExtensionContext
-  container.setDependencies(SERVICE_IDENTIFIERS.CACHE_MANAGER, [
-    SERVICE_IDENTIFIERS.EXTENSION_CONTEXT
+  container.setDependencies(serviceIdentifiers.CACHE_MANAGER, [
+    serviceIdentifiers.EXTENSION_CONTEXT
   ]);
 
   // DiagramGeneratorService depends on AIProviderService and ExtensionContext
-  container.setDependencies(SERVICE_IDENTIFIERS.DIAGRAM_GENERATOR, [
-    SERVICE_IDENTIFIERS.AI_PROVIDER,
-    SERVICE_IDENTIFIERS.EXTENSION_CONTEXT
+  container.setDependencies(serviceIdentifiers.DIAGRAM_GENERATOR, [
+    serviceIdentifiers.AI_PROVIDER,
+    serviceIdentifiers.EXTENSION_CONTEXT
   ]);
 
   // WebviewManager depends on ExtensionContext
-  container.setDependencies(SERVICE_IDENTIFIERS.WEBVIEW_MANAGER, [
-    SERVICE_IDENTIFIERS.EXTENSION_CONTEXT
+  container.setDependencies(serviceIdentifiers.WEBVIEW_MANAGER, [
+    serviceIdentifiers.EXTENSION_CONTEXT
   ]);
 
   // HoverProvider depends on FunctionDetectorService and CacheManager
-  container.setDependencies(SERVICE_IDENTIFIERS.HOVER_PROVIDER, [
-    SERVICE_IDENTIFIERS.FUNCTION_DETECTOR,
-    SERVICE_IDENTIFIERS.CACHE_MANAGER
+  container.setDependencies(serviceIdentifiers.HOVER_PROVIDER, [
+    serviceIdentifiers.FUNCTION_DETECTOR,
+    serviceIdentifiers.CACHE_MANAGER
   ]);
 }

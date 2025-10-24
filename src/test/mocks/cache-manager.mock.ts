@@ -1,5 +1,5 @@
 import { ICacheManager } from '../../interfaces/cache-manager.interface';
-import { DiagramCache, CacheMetadata } from '../../types';
+import { DiagramCache, CacheMetadata, DiagramVersion } from '../../types';
 
 export class MockCacheManager implements ICacheManager {
   private cache = new Map<string, DiagramCache>();
@@ -13,7 +13,7 @@ export class MockCacheManager implements ICacheManager {
   async get(key: string): Promise<DiagramCache | null> {
     this.total++;
     const result = this.cache.get(key) || null;
-    if (result) this.hits++;
+    if (result) {this.hits++;}
     return result;
   }
 
@@ -76,5 +76,55 @@ export class MockCacheManager implements ICacheManager {
       cacheDirectory: '/mock/cache',
       maxCacheSize: 1000
     };
+  }
+
+  async addVersion(
+    key: string,
+    diagram: string,
+    source: 'ai-generated' | 'user-edited' | 'regenerated',
+    explanation?: string,
+    changeDescription?: string
+  ): Promise<string> {
+    const versionId = `v${Date.now()}`;
+    const entry = this.cache.get(key);
+    if (entry) {
+      if (!entry.versions) {
+        entry.versions = [];
+      }
+      entry.versions.unshift({
+        id: versionId,
+        diagram,
+        diagramType: entry.diagramType || 'flowchart',
+        timestamp: Date.now(),
+        source,
+        explanation,
+        changeDescription
+      });
+    }
+    return versionId;
+  }
+
+  async getVersions(key: string): Promise<DiagramVersion[]> {
+    const entry = this.cache.get(key);
+    return entry?.versions || [];
+  }
+
+  async getVersion(key: string, versionId: string): Promise<DiagramVersion | null> {
+    const entry = this.cache.get(key);
+    return entry?.versions?.find(v => v.id === versionId) || null;
+  }
+
+  async setCurrentVersion(key: string, versionId: string): Promise<void> {
+    const entry = this.cache.get(key);
+    if (entry) {
+      entry.currentVersionId = versionId;
+    }
+  }
+
+  async updateExplanation(key: string, explanation: string): Promise<void> {
+    const entry = this.cache.get(key);
+    if (entry) {
+      entry.explanation = explanation;
+    }
   }
 }

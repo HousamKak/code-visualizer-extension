@@ -94,7 +94,7 @@ describe('DiagramGeneratorService - Basic Tests', () => {
     };
 
     const expectedDiagram = 'sequenceDiagram\n    AStart -> BEnd';
-    mockAIProvider.generateDiagram.mockResolvedValue(expectedDiagram);
+    mockAIProvider.generateDiagram.mockResolvedValue({ diagram: expectedDiagram, explanation: 'Test explanation' });
 
     const result = await service.generateDiagram(functionInfo);
 

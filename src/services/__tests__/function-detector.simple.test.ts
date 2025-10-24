@@ -68,4 +68,111 @@ describe('FunctionDetectorService - Basic Tests', () => {
     expect(analysis).toBeDefined();
     expect(analysis.complexity).toBe('simple');
   });
+
+  describe('C# Method Detection', () => {
+    beforeEach(() => {
+      mockDocument.languageId = 'csharp';
+    });
+
+    it('should support C#', () => {
+      expect(service.isSupported(mockDocument)).toBe(true);
+    });
+
+    it('should detect async Task<string> methods', () => {
+      const code = `
+public class TestClass
+{
+    private async Task<string> RunWhisperProcessAsync(string input)
+    {
+        await Task.Delay(100);
+        return input.ToUpper();
+    }
+}`;
+      mockDocument.getText.mockReturnValue(code);
+      
+      // Position within the method declaration
+      const position = new vscode.Position(3, 35);
+      const result = service.extractFunctionAtPosition(mockDocument, position);
+      
+      expect(result).toBeDefined();
+      expect(result?.name).toBe('RunWhisperProcessAsync');
+      expect(result?.type).toBe('method');
+    });
+
+    it('should detect simple async Task methods', () => {
+      const code = `
+public class TestClass
+{
+    public async Task ProcessDataAsync()
+    {
+        await Task.Delay(50);
+    }
+}`;
+      mockDocument.getText.mockReturnValue(code);
+      
+      const position = new vscode.Position(3, 20);
+      const result = service.extractFunctionAtPosition(mockDocument, position);
+      
+      expect(result).toBeDefined();
+      expect(result?.name).toBe('ProcessDataAsync');
+      expect(result?.type).toBe('method');
+    });
+
+    it('should detect void methods', () => {
+      const code = `
+public class TestClass
+{
+    protected void HandleEvent()
+    {
+        Console.WriteLine("Event handled");
+    }
+}`;
+      mockDocument.getText.mockReturnValue(code);
+      
+      const position = new vscode.Position(3, 20);
+      const result = service.extractFunctionAtPosition(mockDocument, position);
+      
+      expect(result).toBeDefined();
+      expect(result?.name).toBe('HandleEvent');
+      expect(result?.type).toBe('method');
+    });
+
+    it('should detect static methods with generics', () => {
+      const code = `
+public class TestClass
+{
+    public static List<T> GetItems<T>()
+    {
+        return new List<T>();
+    }
+}`;
+      mockDocument.getText.mockReturnValue(code);
+      
+      const position = new vscode.Position(3, 25);
+      const result = service.extractFunctionAtPosition(mockDocument, position);
+      
+      expect(result).toBeDefined();
+      expect(result?.name).toBe('GetItems');
+      expect(result?.type).toBe('method');
+    });
+
+    it('should detect simple typed methods', () => {
+      const code = `
+public class TestClass
+{
+    public string GetMessage()
+    {
+        return "Hello";
+    }
+}`;
+      mockDocument.getText.mockReturnValue(code);
+      
+      const position = new vscode.Position(3, 20);
+      const result = service.extractFunctionAtPosition(mockDocument, position);
+      
+      expect(result).toBeDefined();
+      expect(result?.name).toBe('GetMessage');
+      expect(result?.type).toBe('method');
+    });
+  });
 });

@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'nonce-{{NONCE}}' https://cdn.jsdelivr.net; style-src 'unsafe-inline' https://cdn.jsdelivr.net; img-src data: 'self'; font-src https://cdn.jsdelivr.net;">
+    <title>{{FUNCTION_NAME}}</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: var(--vscode-font-family);
+            color: var(--vscode-foreground);
+            background: var(--vscode-editor-background);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Header - Minimal 40px */
+        .header {
+            height: 40px;
+            border-bottom: 1px solid var(--vscode-panel-border);
+            display: flex;
+            align-items: center;
+            padding: 0 12px;
+            gap: 12px;
+            background: var(--vscode-titleBar-activeBackground);
+        }
+
+        .header-title {
+            font-weight: 600;
+            font-size: 13px;
+        }
+
+        .header-meta {
+            font-size: 11px;
+            opacity: 0.7;
+        }
+
+        /* Main Layout - Two Column */
+        .main {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+
+        /* Diagram Area - 70% */
+        .diagram-area {
+            flex: 0 0 70%;
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid var(--vscode-panel-border);
+        }
+
+        #diagram {
+            flex: 1;
+            overflow: auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        /* Sidebar - 30% */
+        .sidebar {
+            flex: 0 0 30%;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid var(--vscode-panel-border);
+            background: var(--vscode-editorGroupHeader-tabsBackground);
+        }
+
+        .tab {
+            padding: 8px 16px;
+            cursor: pointer;
+            border: none;
+            background: transparent;
+            color: var(--vscode-tab-inactiveForeground);
+            font-size: 12px;
+            border-bottom: 2px solid transparent;
+        }
+
+        .tab.active {
+            color: var(--vscode-tab-activeForeground);
+            border-bottom-color: var(--vscode-tab-activeBorderTop, var(--vscode-focusBorder));
+        }
+
+        .tab-content {
+            flex: 1;
+            overflow: auto;
+            display: none;
+            padding: 12px;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Explanation Panel */
+        #explanation {
+            line-height: 1.6;
+            font-size: 13px;
+        }
+
+        #explanation h3 {
+            font-size: 14px;
+            margin-bottom: 8px;
+            color: var(--vscode-textLink-foreground);
+        }
+
+        #explanation p {
+            margin-bottom: 12px;
+        }
+
+        /* Editor Panel */
+        #editor-container {
+            height: 100%;
+            min-height: 200px;
+        }
+
+        /* Toolbar - 40px */
+        .toolbar {
+            height: 40px;
+            border-top: 1px solid var(--vscode-panel-border);
+            display: flex;
+            align-items: center;
+            padding: 0 12px;
+            gap: 8px;
+            background: var(--vscode-statusBar-background);
+        }
+
+        .btn {
+            padding: 4px 12px;
+            border: 1px solid var(--vscode-button-border, transparent);
+            background: var(--vscode-button-background);
+            color: var(--vscode-button-foreground);
+            cursor: pointer;
+            font-size: 12px;
+            border-radius: 2px;
+        }
+
+        .btn:hover {
+            background: var(--vscode-button-hoverBackground);
+        }
+
+        .btn-secondary {
+            background: var(--vscode-button-secondaryBackground);
+            color: var(--vscode-button-secondaryForeground);
+        }
+
+        .btn-secondary:hover {
+            background: var(--vscode-button-secondaryHoverBackground);
+        }
+
+        .spacer {
+            flex: 1;
+        }
+
+        .version-nav {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 11px;
+        }
+
+        .version-btn {
+            padding: 2px 8px;
+            font-size: 11px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <span class="header-title">{{FUNCTION_NAME}}</span>
+        <span class="header-meta">{{LANGUAGE}} • {{DIAGRAM_TYPE}} • Line {{START_LINE}}</span>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main">
+        <!-- Diagram Area -->
+        <div class="diagram-area">
+            <div id="diagram">
+                <div style="opacity: 0.5;">Loading diagram...</div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="tabs">
+                <button class="tab active" data-tab="explanation">Explanation</button>
+                <button class="tab" data-tab="editor">Mermaid Editor</button>
+            </div>
+
+            <div class="tab-content active" id="tab-explanation">
+                <div id="explanation">{{EXPLANATION}}</div>
+            </div>
+
+            <div class="tab-content" id="tab-editor">
+                <textarea id="editor-container" style="width:100%;height:100%;font-family:monospace;font-size:12px;"></textarea>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="toolbar">
+        <div class="version-nav" id="version-nav" style="display: {{VERSION_DISPLAY}};">
+            <button class="btn btn-secondary version-btn" id="prev-version">◀</button>
+            <span id="version-info">v1 of {{VERSION_COUNT}}</span>
+            <button class="btn btn-secondary version-btn" id="next-version">▶</button>
+        </div>
+        <div class="spacer"></div>
+        <button class="btn btn-secondary" id="save-edit">Save Edit</button>
+        <button class="btn btn-secondary" id="regenerate">Regenerate</button>
+        <button class="btn btn-secondary" id="export">Export SVG</button>
+    </div>
+
+    <script src="{{MERMAID_URI}}" nonce="{{NONCE}}"></script>
+    <script nonce="{{NONCE}}">
+        const vscode = acquireVsCodeApi();
+        let currentDiagram = `{{DIAGRAM}}`;
+        let currentVersionIndex = 0;
+        let versions = {{VERSIONS_JSON}};
+
+        // Initialize Mermaid
+        mermaid.initialize({
+            startOnLoad: false,
+            theme: 'dark',
+            securityLevel: 'loose'
+        });
+
+        // Render diagram
+        async function renderDiagram(diagramText) {
+            const diagramEl = document.getElementById('diagram');
+            try {
+                const id = 'diagram-' + Date.now();
+                const result = await mermaid.render(id, diagramText);
+                diagramEl.innerHTML = result.svg;
+            } catch (error) {
+                diagramEl.innerHTML = '<div style="color: var(--vscode-errorForeground);">Error: ' + error.message + '</div>';
+            }
+        }
+
+        // Tab switching
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                tab.classList.add('active');
+                document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+            });
+        });
+
+        // Editor sync
+        const editor = document.getElementById('editor-container');
+        editor.value = currentDiagram;
+        editor.addEventListener('input', () => {
+            currentDiagram = editor.value;
+            renderDiagram(currentDiagram);
+        });
+
+        // Save edit
+        document.getElementById('save-edit').addEventListener('click', () => {
+            vscode.postMessage({ command: 'saveEdit', diagram: currentDiagram });
+        });
+
+        // Regenerate
+        document.getElementById('regenerate').addEventListener('click', () => {
+            vscode.postMessage({ command: 'regenerate' });
+        });
+
+        // Export
+        document.getElementById('export').addEventListener('click', () => {
+            const svg = document.querySelector('#diagram svg');
+            if (svg) {
+                const svgData = new XMLSerializer().serializeToString(svg);
+                const blob = new Blob([svgData], {type: 'image/svg+xml'});
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = '{{FUNCTION_NAME}}-diagram.svg';
+                a.click();
+                URL.revokeObjectURL(url);
+            }
+        });
+
+        // Version navigation
+        document.getElementById('prev-version')?.addEventListener('click', () => {
+            if (currentVersionIndex < versions.length - 1) {
+                currentVersionIndex++;
+                loadVersion(currentVersionIndex);
+            }
+        });
+
+        document.getElementById('next-version')?.addEventListener('click', () => {
+            if (currentVersionIndex > 0) {
+                currentVersionIndex--;
+                loadVersion(currentVersionIndex);
+            }
+        });
+
+        function loadVersion(index) {
+            const version = versions[index];
+            if (version) {
+                currentDiagram = version.diagram;
+                editor.value = currentDiagram;
+                renderDiagram(currentDiagram);
+                document.getElementById('version-info').textContent = `v${versions.length - index} of ${versions.length}`;
+            }
+        }
+
+        // Initial render
+        renderDiagram(currentDiagram);
+    </script>
+</body>
+</html>

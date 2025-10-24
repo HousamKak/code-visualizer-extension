@@ -21,18 +21,40 @@ export class ClassParser extends DiagramParser {
   private fixClassSyntax(diagram: string): string {
     const lines = diagram.split('\n');
     const fixedLines: string[] = [];
-    let currentClass = '';
+    const declared = new Set<string>();
+    const prelude: string[] = [];
     let inClassDefinition = false;
     
+    // Relationship normalization patterns (STRICT.md section 3.4)
+    const REL = [
+      { re: /:\s*Inherits?$/i, repl: ' --|> ' },
+      { re: /:\s*Implements?$/i, repl: ' ..|> ' },
+      { re: /:\s*Extends?$/i, repl: ' --|> ' },
+      { re: /:\s*Uses?$/i, repl: ' --> ' },
+    ];
+    
     for (let i = 0; i < lines.length; i++) {
-      const line = lines[i].trim();
+      let line = lines[i].trim();
+      
+      // Header
+      if (line === 'classDiagram') {
+        fixedLines.push(line);
+        continue;
+      }
+      
+      // Skip empty lines
+      if (!line) {
+        fixedLines.push('');
+        continue;
+      }
       
       // Check if this is a class definition
-      const classMatch = line.match(/^class\s+(\w+)\s*\{?/);
+      const classMatch = line.match(/^class\s+([A-Za-z0-9_]+)\s*\{?/);
       if (classMatch) {
-        currentClass = classMatch[1];
+        const className = classMatch[1];
+        declared.add(className);
         inClassDefinition = true;
-        fixedLines.push(line.includes('{') ? line : `class ${currentClass} {`);
+        fixedLines.push(line.includes('{') ? line : `class ${className} {`);
         continue;
       }
       
@@ -40,42 +62,58 @@ export class ClassParser extends DiagramParser {
       if (line === '}' && inClassDefinition) {
         fixedLines.push(line);
         inClassDefinition = false;
-        currentClass = '';
         continue;
       }
       
-      // Fix methods/fields with + or - prefixes outside of class definitions
-      if (line.match(/^[+\-]\s*\w+/) && !inClassDefinition && currentClass) {
-        const lastClassIndex = fixedLines.map((line, index) => 
-          line.includes(`class ${currentClass}`) ? index : -1
-        ).filter(i => i !== -1).pop() ?? -1;
-        
-        if (lastClassIndex !== -1) {
-          if (!fixedLines[lastClassIndex].includes('{')) {
-            fixedLines[lastClassIndex] = `class ${currentClass} {`;
-          }
-          fixedLines.push(`    ${line}`);
-          continue;
+      // Methods and fields inside class definition
+      if (inClassDefinition && (line.match(/^[+\-#~]/) || line.match(/^\w+\s*:/))) {
+        fixedLines.push(`    ${line}`);
+        continue;
+      }
+      
+      // Standalone class declaration (no braces)
+      if (line.match(/^class\s+([A-Za-z0-9_]+)$/)) {
+        const className = line.split(/\s+/)[1];
+        declared.add(className);
+        fixedLines.push(line);
+        continue;
+      }
+      
+      // Relationship normalization
+      let s = line;
+      for (const {re, repl} of REL) {
+        s = s.replace(re, repl);
+      }
+      s = s.replace(/\s*-->\s*/g, ' --> ');
+      
+      // Ensure any class referenced in a relationship is declared at least once
+      const names = [...s.matchAll(/\b([A-Za-z0-9_]+)\s*(?:--\|>|\.\.\|>|[*o-]{2}|-->)\s*([A-Za-z0-9_]+)/g)]
+        .flatMap(m => [m[1], m[2]]);
+      for (const name of names) {
+        if (!declared.has(name)) {
+          prelude.push(`class ${name}`);
+          declared.add(name);
         }
       }
       
-      // Fix relationship syntax
-      if (line.includes('-->') && !line.includes('note')) {
-        const relationshipLine = line
-          .replace(/\s*-->\s*([\w\s:]+)\s*:\s*Inherits/gi, ' --|> $1')
-          .replace(/\s*-->\s*([\w\s:]+)\s*:\s*Uses/gi, ' --> $1 : uses')
-          .replace(/\s*-->\s*([\w\s:]+)\s*:\s*Extends/gi, ' --|> $1')
-          .replace(/\s*-->\s*([\w\s:]+)\s*:\s*Implements/gi, ' ..|> $1');
-        fixedLines.push(relationshipLine);
-        continue;
+      if (s !== line) {
+        fixedLines.push(s);
+      } else {
+        fixedLines.push(line);
       }
-      
-      fixedLines.push(line);
     }
     
-    // Ensure all class definitions are closed
+    // Ensure any opened class definition gets closed (STRICT.md section 3.4)
     if (inClassDefinition) {
       fixedLines.push('}');
+    }
+    
+    // Insert class declarations for referenced classes
+    if (prelude.length > 0) {
+      const headerIdx = fixedLines.findIndex(l => l.trim() === 'classDiagram');
+      if (headerIdx >= 0) {
+        fixedLines.splice(headerIdx + 1, 0, ...prelude);
+      }
     }
     
     return fixedLines.join('\n')

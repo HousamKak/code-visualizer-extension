@@ -1,12 +1,12 @@
 import * as vscode from 'vscode';
 import { FunctionInfo, CodeAnalysis } from '../types';
-import { SUPPORTED_LANGUAGES, MAX_FUNCTION_SIZE } from '../utils/constants';
+import { supportedLanguages, maxFunctionSize } from '../utils/constants';
 import { IFunctionDetectorService } from '../interfaces/function-detector.interface';
 
 export class FunctionDetectorService implements IFunctionDetectorService {
   
   isSupported(document: vscode.TextDocument): boolean {
-    return SUPPORTED_LANGUAGES.includes(document.languageId);
+    return supportedLanguages.includes(document.languageId);
   }
 
   extractFunctionAtPosition(document: vscode.TextDocument, position: vscode.Position): FunctionInfo | null {
@@ -26,7 +26,7 @@ export class FunctionDetectorService implements IFunctionDetectorService {
     const functionLines = lines.slice(functionStart, functionEnd + 1);
     const functionCode = functionLines.join('\n');
     
-    if (functionCode.length > MAX_FUNCTION_SIZE) {
+    if (functionCode.length > maxFunctionSize) {
       return null; // Function too large
     }
     
@@ -49,6 +49,16 @@ export class FunctionDetectorService implements IFunctionDetectorService {
     for (let i = currentLine; i >= 0; i--) {
       const line = lines[i].trim();
       if (this.isFunctionDeclaration(line)) {
+        // Check if this is a decorator, look for the actual function after it
+        if (line.startsWith('@')) {
+          // Look ahead for the actual function definition
+          for (let j = i + 1; j < Math.min(i + 5, lines.length); j++) {
+            const nextLine = lines[j].trim();
+            if (this.isFunctionDeclaration(nextLine) && !nextLine.startsWith('@')) {
+              return i; // Return the decorator line as the start
+            }
+          }
+        }
         return i;
       }
       // Stop if we hit another function or class
@@ -92,14 +102,53 @@ export class FunctionDetectorService implements IFunctionDetectorService {
 
   private isFunctionDeclaration(line: string): boolean {
     const patterns = [
-      /^\s*(export\s+)?(async\s+)?function\s+\w+/,           // JS/TS function
+      // JavaScript/TypeScript functions
+      /^\s*(export\s+)?(async\s+)?function\s+\w+/,           // function declaration
       /^\s*(export\s+)?(const|let|var)\s+\w+\s*=\s*(async\s+)?\(/,  // Arrow function
+      /^\s*(export\s+)?(const|let|var)\s+\w+\s*=\s*(async\s+)?function/,  // Function expression
+      
+      // Methods and class members
       /^\s*(public|private|protected)?\s*(static\s+)?(async\s+)?\w+\s*\(/,  // Method
-      /^\s*def\s+\w+/,                                        // Python
-      /^\s*(public|private|protected)?\s*(static\s+)?\w+\s+\w+\s*\(/,  // Java/C#
-      /^\s*func\s+\w+/,                                       // Go
-      /^\s*(pub\s+)?fn\s+\w+/,                               // Rust
-      /^\s*class\s+\w+/,                                      // Class definition
+      /^\s*(public|private|protected)?\s*(static\s+)?(get|set)\s+\w+/,      // Getters/setters
+      /^\s*\w+\s*\([^)]*\)\s*\{/,                            // Simple method
+      /^\s*async\s+\w+\s*\(/,                                // Async method
+      
+      // Class definitions
+      /^\s*(export\s+)?(abstract\s+)?class\s+\w+/,           // Class definition
+      /^\s*(export\s+)?interface\s+\w+/,                     // Interface definition
+      /^\s*(export\s+)?type\s+\w+\s*=/,                      // Type definition
+      /^\s*(export\s+)?enum\s+\w+/,                          // Enum definition
+      
+      // Python
+      /^\s*def\s+\w+/,                                        // Python function
+      /^\s*async\s+def\s+\w+/,                               // Python async function
+      /^\s*class\s+\w+/,                                      // Python class
+      /^\s*@\w+/,                                             // Python decorator (task functions often use decorators)
+      
+      // Java/C#
+      /^\s*(public|private|protected)?\s*(static\s+)?(async\s+)?\w+(?:<[^>]+>)?\s+\w+(?:<[^>]*>)?\s*\(/,  // Java/C# method with generics
+      /^\s*(public|private|protected)?\s*(static\s+)?(async\s+)?Task(?:<[^>]+>)?\s+\w+\s*\(/,  // C# Task methods
+      /^\s*(public|private|protected)?\s*(static\s+)?(async\s+)?void\s+\w+\s*\(/,  // C# void methods
+      /^\s*(public|private|protected)?\s*(static\s+)?\w+\s+\w+\s*\(/,  // Simple Java/C# method
+      /^\s*@\w+/,                                             // Java/C# annotation
+      
+      // Go
+      /^\s*func\s+(\(\w+\s+\*?\w+\)\s+)?\w+/,               // Go function (with or without receiver)
+      /^\s*type\s+\w+\s+(struct|interface)/,                 // Go type definition
+      
+      // Rust
+      /^\s*(pub\s+)?fn\s+\w+/,                               // Rust function
+      /^\s*(pub\s+)?async\s+fn\s+\w+/,                       // Rust async function
+      /^\s*impl\s+(\w+\s+for\s+)?\w+/,                       // Rust impl block
+      /^\s*(pub\s+)?struct\s+\w+/,                           // Rust struct
+      /^\s*(pub\s+)?trait\s+\w+/,                            // Rust trait
+      
+      // Task/worker functions (common patterns)
+      /^\s*(export\s+)?task\s+\w+/,                          // Task definition
+      /^\s*(export\s+)?worker\s+\w+/,                        // Worker definition
+      /^\s*\w+\.task\s*\(/,                                  // Method chaining task
+      /^\s*@task\b/,                                          // Task decorator
+      /^\s*@celery\.task\b/,                                  // Celery task decorator
     ];
     
     return patterns.some(pattern => pattern.test(line));
@@ -117,11 +166,38 @@ export class FunctionDetectorService implements IFunctionDetectorService {
   public extractFunctionName(line: string, language: string): string {
     // Try different patterns based on language
     const patterns = [
-      /function\s+(\w+)/,                    // function name()
-      /(?:const|let|var)\s+(\w+)\s*=/,      // const name =
-      /(?:def|func|fn)\s+(\w+)/,            // def/func/fn name
-      /class\s+(\w+)/,                      // class Name
-      /(\w+)\s*\(/,                         // method()
+      // Functions
+      /function\s+(\w+)/,                           // function name()
+      /(?:const|let|var)\s+(\w+)\s*=/,             // const name =
+      /(?:def|func|fn)\s+(\w+)/,                   // def/func/fn name
+      /async\s+def\s+(\w+)/,                       // async def name
+      /async\s+fn\s+(\w+)/,                        // async fn name
+      
+      // Classes and types
+      /(?:class|interface|enum|struct|trait)\s+(\w+)/,  // class/interface/enum/struct/trait Name
+      /type\s+(\w+)\s*=/,                          // type Name =
+      /impl\s+(?:\w+\s+for\s+)?(\w+)/,            // impl Name or impl Trait for Name
+      
+      // C# Methods with return types (more specific first)
+      /(?:public|private|protected)?\s*(?:static\s+)?(?:async\s+)?Task(?:<[^>]+>)?\s+(\w+)\s*\(/,  // C# Task<T> method
+      /(?:public|private|protected)?\s*(?:static\s+)?(?:async\s+)?void\s+(\w+)\s*\(/,  // C# void method
+      /(?:public|private|protected)?\s*(?:static\s+)?(?:async\s+)?\w+(?:<[^>]+>)?\s+(\w+)(?:<[^>]*>)?\s*\(/,  // C# typed method with optional generics
+      /(?:public|private|protected)?\s*(?:static\s+)?(\w+)(?:<[^>]*>)?\s*\(/,  // C# method with optional generics (fallback)
+      
+      // Methods (more specific first)
+      /(?:public|private|protected)?\s*(?:static\s+)?(?:async\s+)?(\w+)\s*\(/,  // method()
+      /(?:get|set)\s+(\w+)/,                       // getter/setter
+      /async\s+(\w+)\s*\(/,                        // async method()
+      
+      // Task patterns
+      /task\s+(\w+)/,                              // task name
+      /worker\s+(\w+)/,                            // worker name
+      /(\w+)\.task\s*\(/,                          // obj.task()
+      /@(?:task|celery\.task)\s*\n?\s*def\s+(\w+)/, // decorated task function
+      /@(\w+)/,                                    // @decorator (use decorator name)
+      
+      // Fallback - any word followed by parentheses
+      /(\w+)\s*\(/,                                // method()
     ];
     
     for (const pattern of patterns) {
@@ -135,11 +211,38 @@ export class FunctionDetectorService implements IFunctionDetectorService {
   }
 
   public determineFunctionType(line: string, language: string): FunctionInfo['type'] {
-    if (line.includes('class ')) return 'class';
-    if (line.includes('async ')) return 'async';
-    if (line.includes('function*')) return 'generator';
-    if (line.includes('=>') || line.match(/=\s*\(/)) return 'arrow';
-    if (line.includes('function ')) return 'function';
+    // Check for class-related constructs first
+    if (line.includes('class ') || line.includes('interface ') || line.includes('enum ')) {return 'class';}
+    if (line.includes('struct ') || line.includes('trait ') || line.includes('impl ')) {return 'class';}
+    if (line.match(/type\s+\w+\s*=/)) {return 'class';}
+    
+    // Check for generators
+    if (line.includes('function*')) {return 'generator';}
+    
+    // Check for arrow functions
+    if (line.includes('=>') || line.match(/=\s*\(/)) {return 'arrow';}
+    
+    // Check for regular functions
+    if (line.includes('function ') || line.includes('def ') || line.includes('fn ') || line.includes('func ')) {return 'function';}
+    
+    // Check for C# method patterns (should be 'method' even if async)
+    if (language === 'csharp' && (
+      line.match(/(?:public|private|protected|internal)?\s*(?:static\s+)?(?:async\s+)?(?:Task|void|\w+(?:<[^>]+>)?)\s+\w+\s*\(/) ||
+      line.includes('get ') || line.includes('set ')
+    )) {
+      return 'method';
+    }
+    
+    // Check for async patterns (but not C# methods which are handled above)
+    if (line.includes('async ') && !line.includes('class') && language !== 'csharp') {return 'async';}
+    
+    // Check for task/worker patterns
+    if (line.includes('@task') || line.includes('task ') || line.includes('worker ') || line.match(/@\w+/)) {return 'async';}
+    
+    // Check for getters/setters
+    if (line.includes('get ') || line.includes('set ')) {return 'method';}
+    
+    // Default to method for anything else
     return 'method';
   }
 
@@ -212,7 +315,7 @@ export class FunctionDetectorService implements IFunctionDetectorService {
         const functionEnd = this.findFunctionEnd(lines, i, document.languageId);
         const functionCode = lines.slice(i, functionEnd + 1).join('\n');
         
-        if (functionCode.length <= MAX_FUNCTION_SIZE) {
+        if (functionCode.length <= maxFunctionSize) {
           functions.push({
             code: functionCode,
             name: this.extractFunctionName(line, document.languageId),
@@ -234,7 +337,7 @@ export class FunctionDetectorService implements IFunctionDetectorService {
 
   getFunctionBoundaries(lines: string[], startLine: number, language: string): { start: number; end: number } | null {
     const functionStart = this.findFunctionStart(lines, startLine);
-    if (functionStart === -1) return null;
+    if (functionStart === -1) {return null;}
     
     const functionEnd = this.findFunctionEnd(lines, functionStart, language);
     return { start: functionStart, end: functionEnd };

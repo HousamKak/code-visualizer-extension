@@ -21,19 +21,20 @@ import { DiagramType, DiagramTypeConfig, FunctionInfo, CodeAnalysis } from '../t
 export interface IDiagramGeneratorService {
   /**
    * Generate the most appropriate diagram for a given function.
-   * 
+   *
    * Analyzes the function code to determine the best diagram type and generates
-   * a comprehensive diagram using AI providers with fallback support.
-   * 
+   * a comprehensive diagram using AI providers with fallback support. Also generates
+   * an explanation of the function's purpose and logic.
+   *
    * @param functionInfo - Complete function information including code and metadata
    * @param preferredType - Optional preferred diagram type to override analysis
-   * @returns Promise resolving to generated diagram string and determined type
+   * @returns Promise resolving to generated diagram, explanation, and determined type
    * @throws Error if diagram generation fails after all retries
    */
   generateDiagram(
     functionInfo: FunctionInfo,
     preferredType?: DiagramType
-  ): Promise<{ diagram: string; type: DiagramType }>;
+  ): Promise<{ diagram: string; type: DiagramType; explanation: string }>;
   
   /**
    * Analyze source code and determine the optimal diagram type.

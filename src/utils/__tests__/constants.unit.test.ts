@@ -1,19 +1,19 @@
 import { 
-  SUPPORTED_LANGUAGES, 
-  CACHE_TTL, 
-  MAX_FUNCTION_SIZE, 
-  MAX_CACHE_SIZE, 
-  CACHE_VERSION,
-  DIAGRAM_THEMES,
-  NONCE_LENGTH
+  supportedLanguages, 
+  cacheTtl, 
+  maxFunctionSize, 
+  maxCacheSize, 
+  cacheVersion,
+  diagramThemes,
+  nonceLength
 } from '../constants';
 
 describe('Utils - Constants', () => {
-  describe('SUPPORTED_LANGUAGES', () => {
+  describe('supportedLanguages', () => {
     it('should be an array of strings', () => {
-      expect(Array.isArray(SUPPORTED_LANGUAGES)).toBe(true);
-      expect(SUPPORTED_LANGUAGES.length).toBeGreaterThan(0);
-      SUPPORTED_LANGUAGES.forEach(lang => {
+      expect(Array.isArray(supportedLanguages)).toBe(true);
+      expect(supportedLanguages.length).toBeGreaterThan(0);
+      supportedLanguages.forEach(lang => {
         expect(typeof lang).toBe('string');
       });
     });
@@ -21,123 +21,123 @@ describe('Utils - Constants', () => {
     it('should include common programming languages', () => {
       const expectedLanguages = ['javascript', 'typescript', 'python', 'java', 'csharp'];
       expectedLanguages.forEach(lang => {
-        expect(SUPPORTED_LANGUAGES).toContain(lang);
+        expect(supportedLanguages).toContain(lang);
       });
     });
 
     it('should not have duplicate languages', () => {
-      const uniqueLanguages = new Set(SUPPORTED_LANGUAGES);
-      expect(uniqueLanguages.size).toBe(SUPPORTED_LANGUAGES.length);
+      const uniqueLanguages = new Set(supportedLanguages);
+      expect(uniqueLanguages.size).toBe(supportedLanguages.length);
     });
 
     it('should have lowercase language identifiers', () => {
-      SUPPORTED_LANGUAGES.forEach(lang => {
+      supportedLanguages.forEach(lang => {
         expect(lang).toBe(lang.toLowerCase());
       });
     });
   });
 
-  describe('CACHE_TTL', () => {
+  describe('cacheTtl', () => {
     it('should be a number representing 24 hours in milliseconds', () => {
-      expect(typeof CACHE_TTL).toBe('number');
-      expect(CACHE_TTL).toBe(24 * 60 * 60 * 1000);
-      expect(CACHE_TTL).toBe(86400000);
+      expect(typeof cacheTtl).toBe('number');
+      expect(cacheTtl).toBe(24 * 60 * 60 * 1000);
+      expect(cacheTtl).toBe(86400000);
     });
 
     it('should be positive', () => {
-      expect(CACHE_TTL).toBeGreaterThan(0);
+      expect(cacheTtl).toBeGreaterThan(0);
     });
   });
 
-  describe('MAX_FUNCTION_SIZE', () => {
+  describe('maxFunctionSize', () => {
     it('should be a reasonable size limit', () => {
-      expect(typeof MAX_FUNCTION_SIZE).toBe('number');
-      expect(MAX_FUNCTION_SIZE).toBe(5000);
-      expect(MAX_FUNCTION_SIZE).toBeGreaterThan(0);
-      expect(MAX_FUNCTION_SIZE).toBeLessThan(100000); // Reasonable upper bound
+      expect(typeof maxFunctionSize).toBe('number');
+      expect(maxFunctionSize).toBe(5000);
+      expect(maxFunctionSize).toBeGreaterThan(0);
+      expect(maxFunctionSize).toBeLessThan(100000); // Reasonable upper bound
     });
   });
 
-  describe('MAX_CACHE_SIZE', () => {
+  describe('maxCacheSize', () => {
     it('should be a positive number', () => {
-      expect(typeof MAX_CACHE_SIZE).toBe('number');
-      expect(MAX_CACHE_SIZE).toBe(100);
-      expect(MAX_CACHE_SIZE).toBeGreaterThan(0);
+      expect(typeof maxCacheSize).toBe('number');
+      expect(maxCacheSize).toBe(100);
+      expect(maxCacheSize).toBeGreaterThan(0);
     });
   });
 
-  describe('CACHE_VERSION', () => {
+  describe('cacheVersion', () => {
     it('should be a valid semantic version string', () => {
-      expect(typeof CACHE_VERSION).toBe('string');
-      expect(CACHE_VERSION).toBe('2.0.0');
-      expect(CACHE_VERSION).toMatch(/^\d+\.\d+\.\d+$/);
+      expect(typeof cacheVersion).toBe('string');
+      expect(cacheVersion).toBe('2.0.0');
+      expect(cacheVersion).toMatch(/^\d+\.\d+\.\d+$/);
     });
   });
 
-  describe('DIAGRAM_THEMES', () => {
+  describe('diagramThemes', () => {
     it('should have all expected theme properties', () => {
-      expect(DIAGRAM_THEMES).toHaveProperty('LIGHT');
-      expect(DIAGRAM_THEMES).toHaveProperty('DARK');
-      expect(DIAGRAM_THEMES).toHaveProperty('FOREST');
-      expect(DIAGRAM_THEMES).toHaveProperty('NEUTRAL');
+      expect(diagramThemes).toHaveProperty('light');
+      expect(diagramThemes).toHaveProperty('dark');
+      expect(diagramThemes).toHaveProperty('forest');
+      expect(diagramThemes).toHaveProperty('neutral');
     });
 
     it('should have correct theme values', () => {
-      expect(DIAGRAM_THEMES.LIGHT).toBe('default');
-      expect(DIAGRAM_THEMES.DARK).toBe('dark');
-      expect(DIAGRAM_THEMES.FOREST).toBe('forest');
-      expect(DIAGRAM_THEMES.NEUTRAL).toBe('neutral');
+      expect(diagramThemes.light).toBe('default');
+      expect(diagramThemes.dark).toBe('dark');
+      expect(diagramThemes.forest).toBe('forest');
+      expect(diagramThemes.neutral).toBe('neutral');
     });
 
     it('should be readonly constant', () => {
-      expect(Object.isFrozen(DIAGRAM_THEMES)).toBe(false); // TypeScript readonly, not runtime frozen
+      expect(Object.isFrozen(diagramThemes)).toBe(false); // TypeScript readonly, not runtime frozen
       // But we can test that the structure is as expected
-      expect(Object.keys(DIAGRAM_THEMES)).toEqual(['LIGHT', 'DARK', 'FOREST', 'NEUTRAL']);
+      expect(Object.keys(diagramThemes)).toEqual(['light', 'dark', 'forest', 'neutral']);
     });
 
     it('should have string values for all themes', () => {
-      Object.values(DIAGRAM_THEMES).forEach(theme => {
+      Object.values(diagramThemes).forEach(theme => {
         expect(typeof theme).toBe('string');
         expect(theme.length).toBeGreaterThan(0);
       });
     });
   });
 
-  describe('NONCE_LENGTH', () => {
+  describe('nonceLength', () => {
     it('should be a positive number', () => {
-      expect(typeof NONCE_LENGTH).toBe('number');
-      expect(NONCE_LENGTH).toBe(16);
-      expect(NONCE_LENGTH).toBeGreaterThan(0);
+      expect(typeof nonceLength).toBe('number');
+      expect(nonceLength).toBe(16);
+      expect(nonceLength).toBeGreaterThan(0);
     });
 
     it('should be reasonable for cryptographic nonce', () => {
-      expect(NONCE_LENGTH).toBeGreaterThanOrEqual(8); // Minimum reasonable
-      expect(NONCE_LENGTH).toBeLessThanOrEqual(64); // Maximum reasonable
+      expect(nonceLength).toBeGreaterThanOrEqual(8); // Minimum reasonable
+      expect(nonceLength).toBeLessThanOrEqual(64); // Maximum reasonable
     });
   });
 
   describe('Constants validation', () => {
     it('should have consistent types', () => {
-      expect(typeof CACHE_TTL).toBe('number');
-      expect(typeof MAX_FUNCTION_SIZE).toBe('number');
-      expect(typeof MAX_CACHE_SIZE).toBe('number');
-      expect(typeof NONCE_LENGTH).toBe('number');
-      expect(typeof CACHE_VERSION).toBe('string');
-      expect(Array.isArray(SUPPORTED_LANGUAGES)).toBe(true);
-      expect(typeof DIAGRAM_THEMES).toBe('object');
+      expect(typeof cacheTtl).toBe('number');
+      expect(typeof maxFunctionSize).toBe('number');
+      expect(typeof maxCacheSize).toBe('number');
+      expect(typeof nonceLength).toBe('number');
+      expect(typeof cacheVersion).toBe('string');
+      expect(Array.isArray(supportedLanguages)).toBe(true);
+      expect(typeof diagramThemes).toBe('object');
     });
 
     it('should have reasonable relationships between numeric constants', () => {
       // Cache TTL should be longer than reasonable function processing time
-      expect(CACHE_TTL).toBeGreaterThan(60000); // At least 1 minute
+      expect(cacheTtl).toBeGreaterThan(60000); // At least 1 minute
       
       // Max function size should be reasonable for processing
-      expect(MAX_FUNCTION_SIZE).toBeGreaterThan(100); // Not too small
-      expect(MAX_FUNCTION_SIZE).toBeLessThan(50000); // Not too large
+      expect(maxFunctionSize).toBeGreaterThan(100); // Not too small
+      expect(maxFunctionSize).toBeLessThan(50000); // Not too large
       
       // Cache size should allow reasonable number of entries
-      expect(MAX_CACHE_SIZE).toBeGreaterThan(10); // Useful minimum
-      expect(MAX_CACHE_SIZE).toBeLessThan(10000); // Reasonable maximum
+      expect(maxCacheSize).toBeGreaterThan(10); // Useful minimum
+      expect(maxCacheSize).toBeLessThan(10000); // Reasonable maximum
     });
   });
 });

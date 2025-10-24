@@ -43,7 +43,7 @@ export interface IServiceContainer {
   getRegisteredServices(): ServiceIdentifier[];
 }
 
-export const SERVICE_IDENTIFIERS = {
+export const serviceIdentifiers = {
   // Services
   AI_PROVIDER: Symbol('AIProviderService'),
   CACHE_MANAGER: Symbol('CacheManager'),

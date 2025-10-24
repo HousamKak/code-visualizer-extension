@@ -3,6 +3,7 @@ import { DiagramType, DiagramTypeConfig, FunctionInfo, CodeAnalysis } from '../t
 import { IAIProviderService } from '../interfaces/ai-provider.interface';
 import { ParserFactory } from '../parsers';
 import { IDiagramGeneratorService } from '../interfaces/diagram-generator.interface';
+import { MermaidSyntaxValidator } from '../utils/mermaid-validator';
 
 export class DiagramGeneratorService implements IDiagramGeneratorService {
   private diagramConfigs: DiagramTypeConfig[] = [];
@@ -19,7 +20,39 @@ export class DiagramGeneratorService implements IDiagramGeneratorService {
       {
         type: 'sequence',
         name: 'Sequence Diagram',
-        prompt: 'Create a detailed Mermaid sequence diagram that captures all interactions, API calls, and message flows. Include participants, activation boxes, and note important async operations. Focus on the temporal order of operations and clearly show request-response patterns.',
+        prompt: `Create a detailed Mermaid sequence diagram that captures all interactions, API calls, and message flows.
+
+⚠️ CRITICAL SYNTAX RULES - FAILURE TO FOLLOW CAUSES RENDER ERRORS:
+1. NEVER use "return" statements - they cause parse errors
+2. Use ONLY "->" or "->>" arrows (never "-> >", "-->" or other variants)
+3. Each message must follow EXACT format: "ParticipantA -> ParticipantB: Message description"
+4. Participant names: ONLY letters, numbers, underscore (no spaces, hyphens, special chars)
+5. Alt/else blocks: Use "alt condition" and "else condition", end with "end"
+6. Proper indentation: 4 spaces for nested content
+
+✅ CORRECT EXAMPLE:
+sequenceDiagram
+    participant UserService
+    participant Database
+    participant Logger
+    
+    UserService -> Database: Query user data
+    alt User exists
+        Database -> UserService: Return user info
+        UserService -> Logger: Log successful query
+    else User not found
+        Database -> UserService: Return empty result
+        UserService -> Logger: Log user not found
+    end
+    UserService -> UserService: Process result
+
+❌ NEVER DO THIS:
+- StartAsync -> Logger: Message
+return  ← THIS BREAKS PARSING
+- Use "-> >" arrows
+- Use participant names with spaces
+
+Include participants, activation boxes, and note important async operations. Focus on the temporal order of operations and clearly show request-response patterns.`,
         patterns: [
           /fetch\s*\(/gi,
           /axios\./gi,
@@ -40,7 +73,7 @@ export class DiagramGeneratorService implements IDiagramGeneratorService {
       {
         type: 'flowchart',
         name: 'Flowchart',
-        prompt: 'Create a comprehensive Mermaid flowchart that shows the complete program flow, including all conditional branches, loops, and decision points. Use clear decision diamonds and show all possible execution paths.',
+        prompt: 'Create a comprehensive Mermaid flowchart that shows the complete program flow, including all conditional branches, loops, and decision points. CRITICAL SYNTAX REQUIREMENTS: Start with "flowchart TD" or "flowchart LR". Use only alphanumeric node IDs (no spaces or special characters). Use clear decision diamonds and show all possible execution paths. Node connections must follow format: "NodeA --> NodeB".',
         patterns: [
           /if\s*\(/gi,
           /else\s*(if\s*)?\{/gi,
@@ -59,7 +92,7 @@ export class DiagramGeneratorService implements IDiagramGeneratorService {
       {
         type: 'classDiagram',
         name: 'Class Diagram',
-        prompt: 'Generate a detailed Mermaid class diagram showing class structures, inheritance hierarchies, composition relationships, and all public/private methods and properties. Include interfaces and abstract classes.',
+        prompt: 'Generate a detailed Mermaid class diagram showing class structures, inheritance hierarchies, composition relationships, and all public/private methods and properties. CRITICAL SYNTAX REQUIREMENTS: Start with "classDiagram". Class names must be alphanumeric only. Use proper relationship syntax: "ClassA <|-- ClassB" for inheritance, "ClassA --> ClassB" for association. Methods and properties must use valid Mermaid syntax without special characters that cause parsing errors.',
         patterns: [
           /class\s+\w+/gi,
           /extends\s+\w+/gi,
@@ -138,16 +171,16 @@ export class DiagramGeneratorService implements IDiagramGeneratorService {
 
     // Score based on code analysis
     if (analysis) {
-      if (analysis.isSequentialProcess) scores.set('sequence', (scores.get('sequence') || 0) + 3);
-      if (analysis.isClassHierarchy) scores.set('classDiagram', (scores.get('classDiagram') || 0) + 3);
-      if (analysis.isStateMachine) scores.set('stateDiagram', (scores.get('stateDiagram') || 0) + 3);
-      if (analysis.isEntityRelationship) scores.set('erDiagram', (scores.get('erDiagram') || 0) + 3);
+      if (analysis.isSequentialProcess) {scores.set('sequence', (scores.get('sequence') || 0) + 3);}
+      if (analysis.isClassHierarchy) {scores.set('classDiagram', (scores.get('classDiagram') || 0) + 3);}
+      if (analysis.isStateMachine) {scores.set('stateDiagram', (scores.get('stateDiagram') || 0) + 3);}
+      if (analysis.isEntityRelationship) {scores.set('erDiagram', (scores.get('erDiagram') || 0) + 3);}
       
-      if (analysis.hasAsyncOperations) scores.set('sequence', (scores.get('sequence') || 0) + 2);
-      if (analysis.hasComplexConditions) scores.set('flowchart', (scores.get('flowchart') || 0) + 2);
-      if (analysis.hasClassDefinition) scores.set('classDiagram', (scores.get('classDiagram') || 0) + 2);
-      if (analysis.hasUserInteraction) scores.set('journey', (scores.get('journey') || 0) + 2);
-      if (analysis.hasDatabaseOperations) scores.set('erDiagram', (scores.get('erDiagram') || 0) + 2);
+      if (analysis.hasAsyncOperations) {scores.set('sequence', (scores.get('sequence') || 0) + 2);}
+      if (analysis.hasComplexConditions) {scores.set('flowchart', (scores.get('flowchart') || 0) + 2);}
+      if (analysis.hasClassDefinition) {scores.set('classDiagram', (scores.get('classDiagram') || 0) + 2);}
+      if (analysis.hasUserInteraction) {scores.set('journey', (scores.get('journey') || 0) + 2);}
+      if (analysis.hasDatabaseOperations) {scores.set('erDiagram', (scores.get('erDiagram') || 0) + 2);}
     }
 
     // Score based on pattern matching
@@ -202,12 +235,12 @@ export class DiagramGeneratorService implements IDiagramGeneratorService {
   async generateDiagram(
     functionInfo: FunctionInfo,
     preferredType?: DiagramType
-  ): Promise<{ diagram: string; type: DiagramType }> {
+  ): Promise<{ diagram: string; type: DiagramType; explanation: string }> {
     const diagramType = preferredType || this.analyzeBestDiagramType(functionInfo.code, functionInfo.language);
     const analysis = this.analyzeCode(functionInfo);
-    const diagram = await this.generateSpecificDiagram(functionInfo.code, diagramType, functionInfo.language);
-    
-    return { diagram, type: diagramType };
+    const result = await this.generateDiagramWithExplanation(functionInfo, diagramType, analysis);
+
+    return { diagram: result.diagram, type: diagramType, explanation: result.explanation };
   }
 
   async generateSpecificDiagram(
@@ -226,43 +259,56 @@ export class DiagramGeneratorService implements IDiagramGeneratorService {
     return this.generateDiagramInternal(functionInfo, diagramType);
   }
 
-  private async generateDiagramInternal(
-    functionInfo: FunctionInfo, 
-    diagramType: DiagramType, 
+  private async generateDiagramWithExplanation(
+    functionInfo: FunctionInfo,
+    diagramType: DiagramType,
     analysis?: CodeAnalysis
-  ): Promise<string> {
+  ): Promise<{ diagram: string; explanation: string }> {
     const config = this.getDiagramConfig(diagramType);
     const prompt = this.buildPrompt(functionInfo, config, analysis);
-    
+
     // Get provider settings
     const providerName = vscode.workspace.getConfiguration('codeVisualizer').get<string>('provider', 'github');
     const fallbackEnabled = vscode.workspace.getConfiguration('codeVisualizer').get<boolean>('fallbackProviders', true);
-    
+
     // Try primary provider
     try {
-      const response = await this.aiProvider.generateDiagram(functionInfo.code, diagramType, functionInfo.language, providerName);
-      return this.cleanAndValidateResponse(response, diagramType);
+      const token = await this.getApiToken(providerName);
+      const response = await this.aiProvider.generateDiagram(functionInfo.code, diagramType, functionInfo.language, providerName, token);
+      const cleanedDiagram = this.cleanAndValidateResponse(response.diagram, diagramType);
+      return { diagram: cleanedDiagram, explanation: response.explanation };
     } catch (error) {
       console.error(`Primary provider ${providerName} failed:`, error);
-      
+
       if (!fallbackEnabled) {
         throw error;
       }
-      
+
       // Try fallback providers
       const fallbackProviders = ['github', 'openai', 'anthropic'].filter(p => p !== providerName);
-      
+
       for (const fallbackProvider of fallbackProviders) {
         try {
-          const response = await this.aiProvider.generateDiagram(functionInfo.code, diagramType, functionInfo.language, fallbackProvider);
-          return this.cleanAndValidateResponse(response, diagramType);
+          const fallbackToken = await this.getApiToken(fallbackProvider);
+          const response = await this.aiProvider.generateDiagram(functionInfo.code, diagramType, functionInfo.language, fallbackProvider, fallbackToken);
+          const cleanedDiagram = this.cleanAndValidateResponse(response.diagram, diagramType);
+          return { diagram: cleanedDiagram, explanation: response.explanation };
         } catch (fallbackError) {
           console.error(`Fallback provider ${fallbackProvider} failed:`, fallbackError);
         }
       }
-      
+
       throw new Error('All providers failed to generate diagram');
     }
+  }
+
+  private async generateDiagramInternal(
+    functionInfo: FunctionInfo,
+    diagramType: DiagramType,
+    analysis?: CodeAnalysis
+  ): Promise<string> {
+    const result = await this.generateDiagramWithExplanation(functionInfo, diagramType, analysis);
+    return result.diagram;
   }
 
   private buildPrompt(functionInfo: FunctionInfo, config: DiagramTypeConfig, analysis?: CodeAnalysis): string {
@@ -280,6 +326,26 @@ export class DiagramGeneratorService implements IDiagramGeneratorService {
 ## Analysis Results:
 ${this.formatCodeAnalysis(analysis || {} as CodeAnalysis)}
 
+## 🚨 ZERO-TOLERANCE SYNTAX REQUIREMENTS 🚨
+These rules are MANDATORY - any violation will cause complete rendering failure:
+
+### SEQUENCE DIAGRAMS:
+- ❌ NEVER use "return" statements anywhere
+- ❌ NEVER use arrows like "-> >", "-->", "-->>", "- >>", "- >"
+- ✅ ONLY use "->" or "->>" 
+- ✅ Format: "ParticipantA -> ParticipantB: Message text"
+- ✅ Participant names: letters, numbers, underscore ONLY
+- ✅ Alt blocks: "alt condition" ... "else condition" ... "end"
+
+### ALL DIAGRAMS:
+- ALL names must be alphanumeric + underscore (no spaces, hyphens, special chars)
+- Follow exact Mermaid syntax patterns - any deviation BREAKS rendering
+- Use proper indentation (4 spaces for nested elements)
+- End each diagram type with proper closing elements
+
+### VALIDATION CHECK:
+Before responding, verify your output against these rules. If ANY rule is violated, fix it immediately.
+
 ## Instructions:
 ${complexityHints}
 - Use clear, descriptive labels without quotes
@@ -287,6 +353,7 @@ ${complexityHints}
 - Show error handling paths where present
 - Highlight async operations and their dependencies
 - Focus on business logic and key architectural decisions
+- ENSURE PERFECT MERMAID SYNTAX COMPLIANCE
 ${this.getDiagramSpecificInstructions(config.type)}
 
 ## Code to Visualize:
@@ -300,12 +367,12 @@ Generate ONLY the ${config.name} in valid Mermaid syntax. Ensure the diagram is 
   private buildAnalysisContext(analysis: CodeAnalysis): string {
     const insights = [];
     
-    if (analysis.hasAsyncOperations) insights.push('- Contains async operations');
-    if (analysis.hasApiCalls) insights.push('- Makes API calls');
-    if (analysis.hasComplexConditions) insights.push('- Has complex conditional logic');
-    if (analysis.hasErrorHandling) insights.push('- Includes error handling');
-    if (analysis.hasLoops) insights.push('- Contains loops or iterations');
-    if (analysis.hasStateManagement) insights.push('- Manages state');
+    if (analysis.hasAsyncOperations) {insights.push('- Contains async operations');}
+    if (analysis.hasApiCalls) {insights.push('- Makes API calls');}
+    if (analysis.hasComplexConditions) {insights.push('- Has complex conditional logic');}
+    if (analysis.hasErrorHandling) {insights.push('- Includes error handling');}
+    if (analysis.hasLoops) {insights.push('- Contains loops or iterations');}
+    if (analysis.hasStateManagement) {insights.push('- Manages state');}
     
     if (insights.length > 0) {
       return `\nCode Analysis Insights:
@@ -357,14 +424,131 @@ Use these insights to create the most appropriate diagram structure.`;
       throw new Error('Empty response from AI provider');
     }
 
-    // Clean and validate using parser
-    const cleaned = ParserFactory.cleanDiagram(response, diagramType);
+    console.log(`[DIAGRAM-GENERATOR] Original AI response for ${diagramType}:`, response);
+
+    // Stage 1: Initial cleaning using parser
+    let cleaned = ParserFactory.cleanDiagram(response, diagramType);
+    console.log(`[DIAGRAM-GENERATOR] After parser cleaning:`, cleaned);
     
     if (cleaned.length < 10) {
       throw new Error('Generated diagram is too short or invalid');
     }
 
+    // Stage 2: Validate syntax and get detailed errors
+    const validation = MermaidSyntaxValidator.validateDiagram(cleaned, diagramType);
+    console.log(`[DIAGRAM-GENERATOR] Validation result - Valid: ${validation.isValid}, Errors: ${validation.errors.length}`);
+    
+    if (!validation.isValid) {
+      // Log validation errors for debugging
+      console.error('Mermaid Syntax Validation Errors:', validation.errors);
+      
+      // If there are critical errors, try to auto-fix them
+      if (diagramType === 'sequence') {
+        console.log(`[DIAGRAM-GENERATOR] Auto-fixing sequence diagram...`);
+        cleaned = this.autoFixSequenceDiagram(cleaned, validation.errors);
+        console.log(`[DIAGRAM-GENERATOR] After auto-fix:`, cleaned);
+        
+        // Re-validate after auto-fix
+        const revalidation = MermaidSyntaxValidator.validateDiagram(cleaned, diagramType);
+        console.log(`[DIAGRAM-GENERATOR] Re-validation result - Valid: ${revalidation.isValid}, Errors: ${revalidation.errors.length}`);
+        if (!revalidation.isValid && revalidation.errors.some(e => e.severity === 'error')) {
+          const errorDetails = revalidation.errors
+            .filter(e => e.severity === 'error')
+            .map(e => `Line ${e.line}: ${e.message}`)
+            .join('\n');
+          throw new Error(`Mermaid syntax validation failed:\n${errorDetails}`);
+        }
+      }
+    }
+
+    // Stage 3: Final validation
+    try {
+      // Attempt to parse with a simple regex check for common issues
+      this.performFinalSyntaxCheck(cleaned, diagramType);
+      console.log(`[DIAGRAM-GENERATOR] Final syntax check passed`);
+    } catch (error) {
+      throw new Error(`Final syntax check failed: ${error instanceof Error ? error.message : String(error)}`);
+    }
+
+    console.log(`[DIAGRAM-GENERATOR] Final cleaned diagram:`, cleaned);
     return cleaned;
+  }
+
+  private autoFixSequenceDiagram(diagram: string, errors: any[]): string {
+    let fixed = diagram;
+    const lines = fixed.split('\n');
+    const fixedLines: string[] = [];
+    
+    for (let i = 0; i < lines.length; i++) {
+      let line = lines[i];
+      
+      // Auto-fix common issues based on validation errors
+      const lineErrors = errors.filter(e => e.line === i + 1);
+      
+      for (const error of lineErrors) {
+        if (error.message.includes('return')) {
+          // Skip return statements entirely
+          line = '';
+          continue;
+        }
+        
+        if (error.message.includes('Invalid arrow syntax')) {
+          // Fix arrow syntax
+          line = line
+            .replace(/-> >/g, ' -> ')
+            .replace(/->> >/g, ' ->> ')
+            .replace(/- >/g, ' -> ')
+            .replace(/-->>/g, ' ->> ')
+            .replace(/-->/g, ' -> ');
+        }
+        
+        if (error.message.includes('Invalid participant name')) {
+          // Clean participant names
+          line = line.replace(/participant\s+([^\s:]+)/g, (match, name) => {
+            const cleanName = name.replace(/[^a-zA-Z0-9_]/g, '');
+            return `participant ${cleanName}`;
+          });
+        }
+        
+        if (error.suggestion) {
+          // Apply suggestion if available
+          line = error.suggestion;
+        }
+      }
+      
+      if (line.trim()) {
+        fixedLines.push(line);
+      }
+    }
+    
+    return fixedLines.join('\n');
+  }
+
+  private performFinalSyntaxCheck(diagram: string, diagramType: DiagramType): void {
+    // Perform final checks for common syntax issues
+    
+    if (diagramType === 'sequence') {
+      // Check for problematic patterns that cause parse errors
+      if (diagram.includes('return')) {
+        throw new Error('Diagram contains "return" statements which cause parse errors');
+      }
+      
+      // Reject only spaced/broken arrows or long dashes:
+      const invalidArrow = /(->\s+>|-\s+>)|(-->|-->>)/;
+      if (invalidArrow.test(diagram)) {
+        throw new Error('Diagram contains invalid arrow syntax');
+      }
+      
+      // Check for proper message format
+      const lines = diagram.split('\n');
+      for (const line of lines) {
+        if (line.includes('->') && !line.includes('participant') && !line.includes('Note')) {
+          if (!line.match(/^\s*[a-zA-Z0-9_]+\s*(->>?)\s*[a-zA-Z0-9_]+\s*:\s*.+$/)) {
+            throw new Error(`Invalid message format in line: "${line.trim()}"`);
+          }
+        }
+      }
+    }
   }
 
   private detectLanguageContext(code: string, language: string): { language: string; framework?: string; patterns: string[] } {
@@ -413,24 +597,24 @@ Use these insights to create the most appropriate diagram structure.`;
 
   private formatCodeAnalysis(analysis: CodeAnalysis): string {
     const features = [];
-    if (analysis.hasApiCalls) features.push('API Calls');
-    if (analysis.hasAsyncOperations) features.push('Async Operations');
-    if (analysis.hasComplexConditions) features.push('Complex Conditions');
-    if (analysis.hasLoops) features.push('Loops');
-    if (analysis.hasErrorHandling) features.push('Error Handling');
-    if (analysis.hasStateManagement) features.push('State Management');
+    if (analysis.hasApiCalls) {features.push('API Calls');}
+    if (analysis.hasAsyncOperations) {features.push('Async Operations');}
+    if (analysis.hasComplexConditions) {features.push('Complex Conditions');}
+    if (analysis.hasLoops) {features.push('Loops');}
+    if (analysis.hasErrorHandling) {features.push('Error Handling');}
+    if (analysis.hasStateManagement) {features.push('State Management');}
     
     return features.length > 0 ? `Detected Features: ${features.join(', ')}` : 'No specific patterns detected';
   }
 
   private getDiagramSpecificInstructions(diagramType: DiagramType): string {
     const instructions: Record<DiagramType, string> = {
-      'sequence': '- Show all participants and their interactions\n- Include activation boxes for processing\n- Note async operations clearly',
-      'flowchart': '- Use decision diamonds for conditions\n- Show all possible paths\n- Group related operations',
-      'classDiagram': '- Show all class members (methods and properties)\n- Include inheritance and composition relationships\n- Use proper visibility indicators',
-      'stateDiagram': '- Show all states and transitions\n- Include trigger conditions for transitions\n- Note entry/exit actions',
-      'erDiagram': '- Show all entities and their attributes\n- Include relationship cardinalities\n- Use proper relationship notation',
-      'journey': '- Show user actions and system responses\n- Include emotional states where relevant\n- Focus on user experience flow',
+      'sequence': '- EXACT SYNTAX: "participant Name" then "From -> To: Message"\n- Use ONLY -> or ->> arrows (never -> >)\n- Show all participants and their interactions\n- Include activation boxes for processing\n- Note async operations clearly',
+      'flowchart': '- EXACT SYNTAX: Start with "flowchart TD" or "flowchart LR"\n- Node format: "A[Description]" or "B{Decision?}"\n- Connection format: "A --> B"\n- Use decision diamonds for conditions\n- Show all possible paths\n- Group related operations',
+      'classDiagram': '- EXACT SYNTAX: Start with "classDiagram"\n- Class format: "class ClassName"\n- Relationship format: "ClassA <|-- ClassB" or "ClassA --> ClassB"\n- Show all class members (methods and properties)\n- Include inheritance and composition relationships\n- Use proper visibility indicators',
+      'stateDiagram': '- EXACT SYNTAX: Start with "stateDiagram-v2"\n- State format: "state StateName"\n- Transition format: "StateA --> StateB: trigger"\n- Show all states and transitions\n- Include trigger conditions for transitions\n- Note entry/exit actions',
+      'erDiagram': '- EXACT SYNTAX: Start with "erDiagram"\n- Entity format: "EntityName { type attribute }"\n- Relationship format: "EntityA ||--o{ EntityB : relationship"\n- Show all entities and their attributes\n- Include relationship cardinalities\n- Use proper relationship notation',
+      'journey': '- EXACT SYNTAX: Start with "journey"\n- Section format: "section SectionName"\n- Step format: "TaskName: Score: Actor"\n- Show user actions and system responses\n- Include emotional states where relevant\n- Focus on user experience flow',
       'gitGraph': '- Show branch structure clearly\n- Include merge and commit points\n- Use descriptive commit messages',
       'mindmap': '- Organize concepts hierarchically\n- Group related ideas\n- Keep labels concise',
       'timeline': '- Show chronological sequence\n- Include key milestones\n- Use clear time indicators',

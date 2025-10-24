@@ -1,5 +1,6 @@
-import { APIProvider } from '../types';
+import { APIProvider, DiagramType } from '../types';
 import { IAIProviderService } from '../interfaces/ai-provider.interface';
+import { strictSystemPrompt, diagramAddenda, buildUserPrompt, parseStructuredResponse } from '../utils/strict-prompts';
 import * as vscode from 'vscode';
 
 /**
@@ -35,30 +36,21 @@ export class AIProviderService implements IAIProviderService {
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
       }),
-      buildBody: (prompt: string) => ({
-        model: 'gpt-4o',
-        messages: [
-          {
-            role: 'system',
-            content: `You are a code visualization expert specializing in Mermaid diagrams. 
-Your task is to analyze code and generate the most appropriate Mermaid diagram.
-
-CRITICAL RULES:
-1. Output ONLY the Mermaid diagram code, no explanations
-2. Start with the diagram type declaration (e.g., "sequenceDiagram", "stateDiagram-v2", "flowchart TD")
-3. NO quotes or backticks in node labels - use plain text only
-4. Keep all labels concise (under 25 characters)
-5. Use clear, descriptive node IDs
-6. For complex logic, focus on the main flow, not every detail
-7. Ensure the diagram is valid Mermaid syntax
-
-Remember: You must output ONLY the diagram code, nothing else.`
-          },
-          { role: 'user', content: prompt }
-        ],
-        max_tokens: 1500,
-        temperature: 0.2
-      }),
+      buildBody: (prompt: string, diagramType?: DiagramType) => {
+        const system = strictSystemPrompt;
+        const addendum = diagramType ? diagramAddenda[diagramType] : '';
+        const user = addendum ? `${addendum}\n\n${prompt}` : prompt;
+        
+        return {
+          model: 'gpt-4o',
+          messages: [
+            { role: 'system', content: system },
+            { role: 'user', content: user }
+          ],
+          max_tokens: 2000,
+          temperature: 0.1
+        };
+      },
       extractResponse: (data: any) => data.choices?.[0]?.message?.content || ''
     });
 
@@ -71,12 +63,21 @@ Remember: You must output ONLY the diagram code, nothing else.`
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
       }),
-      buildBody: (prompt: string) => ({
-        model: 'gpt-4',
-        messages: [{ role: 'user', content: prompt }],
-        max_tokens: 2000,
-        temperature: 0.3
-      }),
+      buildBody: (prompt: string, diagramType?: DiagramType) => {
+        const system = strictSystemPrompt;
+        const addendum = diagramType ? diagramAddenda[diagramType] : '';
+        const user = addendum ? `${addendum}\n\n${prompt}` : prompt;
+        
+        return {
+          model: 'gpt-4',
+          messages: [
+            { role: 'system', content: system },
+            { role: 'user', content: user }
+          ],
+          max_tokens: 2000,
+          temperature: 0.2
+        };
+      },
       extractResponse: (data: any) => data.choices?.[0]?.message?.content || ''
     });
 
@@ -90,11 +91,19 @@ Remember: You must output ONLY the diagram code, nothing else.`
         'Content-Type': 'application/json',
         'anthropic-version': '2023-06-01'
       }),
-      buildBody: (prompt: string) => ({
-        model: 'claude-3-haiku-20240307',
-        max_tokens: 2000,
-        messages: [{ role: 'user', content: prompt }]
-      }),
+      buildBody: (prompt: string, diagramType?: DiagramType) => {
+        const system = strictSystemPrompt;
+        const addendum = diagramType ? diagramAddenda[diagramType] : '';
+        const user = addendum ? `${addendum}\n\n${prompt}` : prompt;
+        
+        return {
+          model: 'claude-3-haiku-20240307',
+          max_tokens: 2000,
+          temperature: 0.1,
+          system: system,
+          messages: [{ role: 'user', content: user }]
+        };
+      },
       extractResponse: (data: any) => data.content?.[0]?.text || ''
     });
 
@@ -104,11 +113,18 @@ Remember: You must output ONLY the diagram code, nothing else.`
       endpoint: 'http://localhost:11434/api/generate',
       model: 'llama2',
       headers: () => ({ 'Content-Type': 'application/json' }),
-      buildBody: (prompt: string) => ({
-        model: 'llama2',
-        prompt: prompt,
-        stream: false
-      }),
+      buildBody: (prompt: string, diagramType?: DiagramType) => {
+        const system = strictSystemPrompt;
+        const addendum = diagramType ? diagramAddenda[diagramType] : '';
+        const fullPrompt = `${system}\n\n${addendum ? addendum + '\n\n' : ''}${prompt}`;
+        
+        return {
+          model: 'llama2',
+          prompt: fullPrompt,
+          stream: false,
+          temperature: 0.1
+        };
+      },
       extractResponse: (data: any) => data.response || ''
     });
   }
@@ -143,7 +159,42 @@ Remember: You must output ONLY the diagram code, nothing else.`
       }
 
       const data = await response.json();
-      return provider.extractResponse(data);
+      const extractedResponse = provider.extractResponse(data);
+      
+      console.log(`[AI-PROVIDER] Raw response from ${provider.name}:`, extractedResponse);
+      return extractedResponse;
+    } catch (error) {
+      throw new Error(`Failed to call ${provider.name}: ${error}`);
+    }
+  }
+
+  async makeRequestWithDiagramType(
+    providerName: string, 
+    prompt: string, 
+    token: string, 
+    diagramType: DiagramType
+  ): Promise<string> {
+    const provider = this.getProvider(providerName);
+    if (!provider) {
+      throw new Error(`Provider ${providerName} not found`);
+    }
+
+    try {
+      const response = await fetch(provider.endpoint, {
+        method: 'POST',
+        headers: provider.headers(token),
+        body: JSON.stringify(provider.buildBody(prompt, diagramType))
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      const extractedResponse = provider.extractResponse(data);
+      
+      console.log(`[AI-PROVIDER] Raw response from ${provider.name}:`, extractedResponse);
+      return extractedResponse;
     } catch (error) {
       throw new Error(`Failed to call ${provider.name}: ${error}`);
     }
@@ -155,22 +206,28 @@ Remember: You must output ONLY the diagram code, nothing else.`
   }
 
   async generateDiagram(
-    code: string, 
-    diagramType: string, 
+    code: string,
+    diagramType: string,
     language: string,
-    providerName?: string
-  ): Promise<string> {
+    providerName?: string,
+    token?: string
+  ): Promise<{ diagram: string; explanation: string }> {
     const provider = providerName || this.currentProvider;
-    const config = vscode.workspace.getConfiguration('codeVisualizer');
-    const token = await vscode.commands.executeCommand('codeVisualizer.getApiToken') as string;
-    
-    const prompt = `Generate a ${diagramType} Mermaid diagram for this ${language} code:
 
-${code}
+    if (!token) {
+      throw new Error('API token is required for diagram generation');
+    }
 
-Focus on the main logic flow and keep it concise. Output only the Mermaid diagram code.`;
+    const prompt = buildUserPrompt(diagramType as DiagramType, language, code);
+    const rawResponse = await this.makeRequestWithDiagramType(provider, prompt, token, diagramType as DiagramType);
 
-    return this.makeRequest(provider, prompt, token);
+    // Parse the structured response
+    const parsed = parseStructuredResponse(rawResponse);
+
+    return {
+      diagram: parsed.diagram,
+      explanation: parsed.explanation
+    };
   }
 
   async isProviderAvailable(providerName: string): Promise<boolean> {

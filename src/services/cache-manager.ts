@@ -1,8 +1,8 @@
 import * as vscode from 'vscode';
 import * as fs from 'fs';
 import * as path from 'path';
-import { DiagramCache, CacheMetadata } from '../types';
-import { CACHE_TTL, MAX_CACHE_SIZE, CACHE_VERSION } from '../utils/constants';
+import { DiagramCache, CacheMetadata, DiagramVersion } from '../types';
+import { cacheTtl, maxCacheSize, cacheVersion, maxVersionHistory } from '../utils/constants';
 import { hashCode, sanitizeFileName } from '../utils/helpers';
 import { ICacheManager } from '../interfaces/cache-manager.interface';
 
@@ -14,11 +14,11 @@ export class CacheManager implements ICacheManager {
   constructor(private context: vscode.ExtensionContext) {
     this.cacheDirectory = path.join(context.globalStorageUri.fsPath, '.code-visualizer-cache');
     this.metadata = {
-      version: CACHE_VERSION,
+      version: cacheVersion,
       totalEntries: 0,
       lastCleanup: Date.now(),
       cacheDirectory: this.cacheDirectory,
-      maxCacheSize: MAX_CACHE_SIZE
+      maxCacheSize: maxCacheSize
     };
   }
 
@@ -71,7 +71,7 @@ export class CacheManager implements ICacheManager {
     
     if (entry) {
       // Check if entry is still valid
-      if (Date.now() - entry.timestamp < CACHE_TTL) {
+      if (Date.now() - entry.timestamp < cacheTtl) {
         // Update access tracking
         entry.lastAccessed = Date.now();
         entry.accessCount++;
@@ -89,15 +89,33 @@ export class CacheManager implements ICacheManager {
 
   async set(key: string, diagram: string, metadata?: any): Promise<void> {
     const cacheKey = hashCode(key);
+    const now = Date.now();
+
+    // Create initial version
+    const initialVersionId = `v${now}-${Math.random().toString(36).substring(2, 9)}`;
+    const initialVersion: DiagramVersion = {
+      id: initialVersionId,
+      diagram,
+      diagramType: metadata?.diagramType || 'flowchart',
+      timestamp: now,
+      source: 'ai-generated',
+      explanation: metadata?.explanation,
+      codeAnalysis: metadata?.codeAnalysis
+    };
+
     const value: DiagramCache = {
       diagram,
       hash: cacheKey,
-      timestamp: Date.now(),
-      lastAccessed: Date.now(),
+      timestamp: now,
+      lastAccessed: now,
       accessCount: 1,
-      metadata
+      metadata,
+      diagramType: metadata?.diagramType,
+      explanation: metadata?.explanation,
+      versions: [initialVersion],
+      currentVersionId: initialVersionId
     };
-    
+
     // Save diagram and image files if provided
     if (value.diagram) {
       const mermaidFileName = `${cacheKey}.mmd`;
@@ -108,12 +126,12 @@ export class CacheManager implements ICacheManager {
 
     this.cache.set(cacheKey, value);
     await this.saveEntry(cacheKey, value);
-    
+
     // Cleanup if cache is too large
-    if (this.cache.size > MAX_CACHE_SIZE) {
+    if (this.cache.size > maxCacheSize) {
       await this.evictLeastRecentlyUsed();
     }
-    
+
     await this.saveMetadata();
   }
 
@@ -185,7 +203,7 @@ export class CacheManager implements ICacheManager {
     const expiredKeys: string[] = [];
     
     for (const [key, entry] of this.cache.entries()) {
-      if (now - entry.timestamp > CACHE_TTL) {
+      if (now - entry.timestamp > cacheTtl) {
         expiredKeys.push(key);
       }
     }
@@ -243,5 +261,118 @@ export class CacheManager implements ICacheManager {
 
   getMetadata(): CacheMetadata {
     return { ...this.metadata };
+  }
+
+  async addVersion(
+    key: string,
+    diagram: string,
+    source: 'ai-generated' | 'user-edited' | 'regenerated',
+    explanation?: string,
+    changeDescription?: string
+  ): Promise<string> {
+    const cacheKey = hashCode(key);
+    const entry = this.cache.get(cacheKey);
+
+    if (!entry) {
+      throw new Error(`Cache entry not found for key: ${key}`);
+    }
+
+    // Initialize versions array if not exists
+    if (!entry.versions) {
+      entry.versions = [];
+    }
+
+    // Create new version
+    const versionId = `v${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    const newVersion: DiagramVersion = {
+      id: versionId,
+      diagram,
+      diagramType: entry.diagramType!,
+      timestamp: Date.now(),
+      source,
+      explanation,
+      changeDescription,
+      codeAnalysis: entry.codeAnalysis
+    };
+
+    // Add version to beginning of array (newest first)
+    entry.versions.unshift(newVersion);
+
+    // Trim to max version history
+    if (entry.versions.length > maxVersionHistory) {
+      entry.versions = entry.versions.slice(0, maxVersionHistory);
+    }
+
+    // Update current version
+    entry.currentVersionId = versionId;
+    entry.diagram = diagram;
+    if (explanation) {
+      entry.explanation = explanation;
+    }
+
+    // Save updated entry
+    await this.saveEntry(cacheKey, entry);
+
+    return versionId;
+  }
+
+  async getVersions(key: string): Promise<DiagramVersion[]> {
+    const cacheKey = hashCode(key);
+    const entry = this.cache.get(cacheKey);
+
+    if (!entry || !entry.versions) {
+      return [];
+    }
+
+    return [...entry.versions];
+  }
+
+  async getVersion(key: string, versionId: string): Promise<DiagramVersion | null> {
+    const cacheKey = hashCode(key);
+    const entry = this.cache.get(cacheKey);
+
+    if (!entry || !entry.versions) {
+      return null;
+    }
+
+    const version = entry.versions.find(v => v.id === versionId);
+    return version || null;
+  }
+
+  async setCurrentVersion(key: string, versionId: string): Promise<void> {
+    const cacheKey = hashCode(key);
+    const entry = this.cache.get(cacheKey);
+
+    if (!entry || !entry.versions) {
+      throw new Error(`Cache entry or versions not found for key: ${key}`);
+    }
+
+    const version = entry.versions.find(v => v.id === versionId);
+    if (!version) {
+      throw new Error(`Version ${versionId} not found`);
+    }
+
+    // Update current version
+    entry.currentVersionId = versionId;
+    entry.diagram = version.diagram;
+    entry.diagramType = version.diagramType;
+    if (version.explanation) {
+      entry.explanation = version.explanation;
+    }
+
+    // Save updated entry
+    await this.saveEntry(cacheKey, entry);
+  }
+
+  async updateExplanation(key: string, explanation: string): Promise<void> {
+    const cacheKey = hashCode(key);
+    const entry = this.cache.get(cacheKey);
+
+    if (!entry) {
+      throw new Error(`Cache entry not found for key: ${key}`);
+    }
+
+    entry.explanation = explanation;
+    await this.saveEntry(cacheKey, entry);
   }
 }
