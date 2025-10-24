@@ -1067,8 +1067,14 @@ export class WebviewManager implements IWebviewManager {
         break;
 
       case 'regenerate':
-        vscode.window.showInformationMessage('Regenerate feature coming soon! Please use the command palette.');
-        // TODO: Trigger regeneration through extension
+        // Store regeneration request in global state with timestamp
+        this.context.globalState.update('lastRegenerateRequest', {
+          functionName: message.functionName,
+          timestamp: Date.now()
+        });
+
+        // Trigger regeneration command
+        vscode.commands.executeCommand('codeVisualizer.generateDiagram');
         break;
 
       default:

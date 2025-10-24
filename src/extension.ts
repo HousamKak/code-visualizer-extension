@@ -310,7 +310,7 @@ export class CodeVisualizerExtension {
   private async regenerateDiagram(): Promise<void> {
     // Check if there's a regeneration request from webview
     const regenerateRequest = this.context.globalState.get('lastRegenerateRequest') as any;
-    
+
     if (regenerateRequest && Date.now() - regenerateRequest.timestamp < 30000) {
       // Use the stored request data
       const editor = vscode.window.activeTextEditor;
@@ -327,12 +327,47 @@ export class CodeVisualizerExtension {
 
       // Clear the regeneration request
       this.context.globalState.update('lastRegenerateRequest', undefined);
-      
-      // Force regeneration by clearing cache for this function
-      await this.cacheManager.delete(functionInfo.name);
-      
-      // Generate new diagram
-      await this.generateAndShowDiagram(functionInfo, true);
+
+      const cacheKey = `${functionInfo.name}:${functionInfo.code}`;
+
+      // Generate new diagram with progress indicator
+      await this.statusManager.showProgress('Regenerating diagram...', async (progress) => {
+        progress('Analyzing code...');
+
+        progress('Determining best diagram type...');
+        const diagramType = this.diagramGenerator.analyzeBestDiagramType(functionInfo.code, functionInfo.language);
+
+        progress(`Generating ${diagramType} diagram...`);
+        const result = await this.diagramGenerator.generateDiagram(functionInfo, diagramType);
+
+        progress('Saving as new version...');
+
+        // Add as new version in cache
+        const versionId = await this.cacheManager.addVersion(
+          cacheKey,
+          result.diagram,
+          'regenerated',
+          result.explanation,
+          'Regenerated with AI'
+        );
+
+        // Update current version to the new one
+        await this.cacheManager.setCurrentVersion(cacheKey, versionId);
+
+        // Get updated cache with versions
+        const cachedDiagram = await this.cacheManager.get(cacheKey);
+
+        if (cachedDiagram) {
+          // Update the webview with new diagram
+          this.webviewManager.updateDiagram(
+            cachedDiagram.diagram,
+            cachedDiagram.diagramType as DiagramType,
+            cachedDiagram.explanation
+          );
+
+          this.statusManager.showNotification('Diagram regenerated successfully!', 'info');
+        }
+      });
     } else {
       // Fallback to normal diagram generation
       await this.showDiagramPanel();
