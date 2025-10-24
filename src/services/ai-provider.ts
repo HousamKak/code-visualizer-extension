@@ -50,7 +50,7 @@ export class AIProviderService implements IAIProviderService {
             { role: 'system', content: system },
             { role: 'user', content: user }
           ],
-          max_tokens: 2000,
+          max_completion_tokens: 2000,
           temperature: 0.1
         };
       },
