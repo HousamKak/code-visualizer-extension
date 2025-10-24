@@ -27,11 +27,14 @@ export class AIProviderService implements IAIProviderService {
   }
 
   private initializeProviders(): void {
-    // GitHub Models (exact original configuration)
+    // Get user-selected GitHub model from settings
+    const githubModel = vscode.workspace.getConfiguration('codeVisualizer').get<string>('githubModel', 'gpt-4o');
+
+    // GitHub Models (with configurable model selection)
     this.providers.set('github', {
       name: 'github',
       endpoint: 'https://models.inference.ai.azure.com/chat/completions',
-      model: 'gpt-4o',
+      model: githubModel,
       headers: (token: string) => ({
         'Authorization': `Bearer ${token}`,
         'Content-Type': 'application/json'
@@ -40,9 +43,9 @@ export class AIProviderService implements IAIProviderService {
         const system = strictSystemPrompt;
         const addendum = diagramType ? diagramAddenda[diagramType] : '';
         const user = addendum ? `${addendum}\n\n${prompt}` : prompt;
-        
+
         return {
-          model: 'gpt-4o',
+          model: githubModel,
           messages: [
             { role: 'system', content: system },
             { role: 'user', content: user }
