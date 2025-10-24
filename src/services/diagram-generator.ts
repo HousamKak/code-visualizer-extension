@@ -332,10 +332,13 @@ These rules are MANDATORY - any violation will cause complete rendering failure:
 ### SEQUENCE DIAGRAMS:
 - ❌ NEVER use "return" statements anywhere
 - ❌ NEVER use arrows like "-> >", "-->", "-->>", "- >>", "- >"
-- ✅ ONLY use "->" or "->>" 
+- ❌ NEVER use standalone text in brackets like "[Comment here]"
+- ✅ ONLY use "->" or "->>" arrows
 - ✅ Format: "ParticipantA -> ParticipantB: Message text"
-- ✅ Participant names: letters, numbers, underscore ONLY
-- ✅ Alt blocks: "alt condition" ... "else condition" ... "end"
+- ✅ Participant names: letters, numbers, underscore ONLY (no spaces, hyphens, dots)
+- ✅ Alt blocks MUST have proper condition: "alt condition < value" or "alt condition == value"
+- ✅ Alt block format: "alt condition" ... "else other condition" ... "end"
+- ✅ Always close alt/opt/loop blocks with "end"
 
 ### ALL DIAGRAMS:
 - ALL names must be alphanumeric + underscore (no spaces, hyphens, special chars)
@@ -478,20 +481,41 @@ Use these insights to create the most appropriate diagram structure.`;
     let fixed = diagram;
     const lines = fixed.split('\n');
     const fixedLines: string[] = [];
-    
+
     for (let i = 0; i < lines.length; i++) {
       let line = lines[i];
-      
+      const trimmedLine = line.trim();
+
+      // Skip standalone bracketed comments like [Service already running]
+      // These are invalid Mermaid syntax and cause rendering errors
+      if (trimmedLine.startsWith('[') && trimmedLine.endsWith(']') && !trimmedLine.includes('*')) {
+        console.log(`[AUTO-FIX] Removing invalid bracketed comment: ${trimmedLine}`);
+        continue;
+      }
+
+      // Fix alt/opt/loop blocks with missing comparison operators
+      // Example: "alt Retry attempts  MAX_START_ATTEMPTS" -> "alt Retry attempts < MAX_START_ATTEMPTS"
+      if (trimmedLine.startsWith('alt ') || trimmedLine.startsWith('opt ') || trimmedLine.startsWith('loop ')) {
+        // Check if line has two words without comparison operator (double space indicates missing operator)
+        const match = trimmedLine.match(/^(alt|opt|loop)\s+(.+?)\s{2,}([A-Z_][A-Z_0-9]+)$/);
+        if (match) {
+          const [, blockType, condition, constant] = match;
+          // Add missing < operator
+          line = `    ${blockType} ${condition} < ${constant}`;
+          console.log(`[AUTO-FIX] Fixed alt block comparison: ${trimmedLine} -> ${line.trim()}`);
+        }
+      }
+
       // Auto-fix common issues based on validation errors
       const lineErrors = errors.filter(e => e.line === i + 1);
-      
+
       for (const error of lineErrors) {
         if (error.message.includes('return')) {
           // Skip return statements entirely
           line = '';
           continue;
         }
-        
+
         if (error.message.includes('Invalid arrow syntax')) {
           // Fix arrow syntax
           line = line
@@ -501,7 +525,7 @@ Use these insights to create the most appropriate diagram structure.`;
             .replace(/-->>/g, ' ->> ')
             .replace(/-->/g, ' -> ');
         }
-        
+
         if (error.message.includes('Invalid participant name')) {
           // Clean participant names
           line = line.replace(/participant\s+([^\s:]+)/g, (match, name) => {
@@ -509,18 +533,18 @@ Use these insights to create the most appropriate diagram structure.`;
             return `participant ${cleanName}`;
           });
         }
-        
+
         if (error.suggestion) {
           // Apply suggestion if available
           line = error.suggestion;
         }
       }
-      
+
       if (line.trim()) {
         fixedLines.push(line);
       }
     }
-    
+
     return fixedLines.join('\n');
   }
 

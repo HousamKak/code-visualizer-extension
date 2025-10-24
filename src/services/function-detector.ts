@@ -91,8 +91,21 @@ export class FunctionDetectorService implements IFunctionDetectorService {
         }
       } else {
         // For indentation-based languages like Python
-        if (i > startLine && line && !line.startsWith(' ') && !line.startsWith('\t')) {
-          return i - 1;
+        // Skip empty lines - they don't end the function
+        if (!line) {
+          continue;
+        }
+
+        // If we find a line at the same or lower indentation level than the function def
+        // AND it's not a comment or decorator, then the function has ended
+        if (i > startLine) {
+          const isAtBaseLevel = !line.startsWith(' ') && !line.startsWith('\t');
+          const isComment = line.startsWith('#');
+          const isDecorator = line.startsWith('@');
+
+          if (isAtBaseLevel && !isComment && !isDecorator) {
+            return i - 1;
+          }
         }
       }
     }
