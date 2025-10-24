@@ -133,18 +133,34 @@ export class WebviewManager implements IWebviewManager {
       // Step 3: Convert markdown-style bold to section headers
       html = html.replace(/\*\*(.+?):\*\*/g, '<h3>$1</h3>');
 
-      // Step 4: Convert bullet lists to proper HTML
-      html = html.replace(/^- (.+)$/gm, '<li>$1</li>');
-      html = html.replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>');
-
-      // Step 5: Convert paragraphs (double newlines)
-      html = html.split('\\n\\n').map(para => {
+      // Step 4: Convert paragraphs first (split on double newlines)
+      const parts = html.split(/\n\n+/);
+      html = parts.map(para => {
         para = para.trim();
-        if (para.startsWith('<h3>') || para.startsWith('<ul>')) {
+        if (!para) return '';
+
+        // Check if this part contains bullet points
+        if (para.includes('\n- ') || para.startsWith('- ')) {
+          // Convert bullet list
+          const items = para.split(/\n/).map(line => {
+            line = line.trim();
+            if (line.startsWith('- ')) {
+              return '<li>' + line.substring(2) + '</li>';
+            }
+            return line;
+          }).filter(l => l.startsWith('<li>'));
+
+          return '<ul>' + items.join('') + '</ul>';
+        }
+
+        // Skip if already wrapped in structural elements
+        if (para.startsWith('<h3>') || para.startsWith('<ul>') || para.startsWith('<div>')) {
           return para;
         }
-        return para ? '<p>' + para + '</p>' : '';
-      }).join('');
+
+        // Wrap in paragraph tag
+        return '<p>' + para + '</p>';
+      }).filter(p => p).join('\n');
 
       // Step 6: Add section wrappers with specific styling
       html = html.replace(/<h3>Overview<\/h3>/g, '<div class="section overview"><h3>📋 Overview</h3>');
@@ -259,6 +275,29 @@ export class WebviewManager implements IWebviewManager {
             height: auto;
             display: block;
             pointer-events: none;
+        }
+
+        /* Ensure arrow markers are visible in sequence diagrams */
+        #diagram-content svg marker {
+            overflow: visible;
+        }
+
+        #diagram-content svg marker path {
+            fill: var(--vscode-foreground, #cccccc);
+            stroke: var(--vscode-foreground, #cccccc);
+        }
+
+        /* Fix for sequence diagram arrows */
+        #diagram-content svg .messageLine0,
+        #diagram-content svg .messageLine1 {
+            stroke: var(--vscode-foreground, #cccccc);
+            marker-end: url(#arrowhead);
+        }
+
+        #diagram-content svg defs marker polygon,
+        #diagram-content svg defs marker path {
+            fill: var(--vscode-foreground, #cccccc) !important;
+            stroke: var(--vscode-foreground, #cccccc) !important;
         }
 
         .zoom-controls {
@@ -694,8 +733,29 @@ export class WebviewManager implements IWebviewManager {
                 startOnLoad: false,
                 theme: 'dark',
                 securityLevel: 'loose',
-                flowchart: { useMaxWidth: true, htmlLabels: true, curve: 'basis' },
-                sequence: { useMaxWidth: true, wrap: true },
+                flowchart: {
+                    useMaxWidth: true,
+                    htmlLabels: true,
+                    curve: 'basis'
+                },
+                sequence: {
+                    useMaxWidth: true,
+                    wrap: true,
+                    diagramMarginX: 50,
+                    diagramMarginY: 10,
+                    actorMargin: 50,
+                    width: 150,
+                    height: 65,
+                    boxMargin: 10,
+                    boxTextMargin: 5,
+                    noteMargin: 10,
+                    messageMargin: 35,
+                    mirrorActors: true,
+                    bottomMarginAdj: 1,
+                    useMaxWidth: true,
+                    rightAngles: false,
+                    showSequenceNumbers: false
+                },
                 class: { useMaxWidth: true },
                 state: { useMaxWidth: true },
                 er: { useMaxWidth: true },
@@ -791,12 +851,56 @@ export class WebviewManager implements IWebviewManager {
                 contentEl.innerHTML = result.svg;
                 console.log('[WEBVIEW] Diagram rendered successfully');
 
+                // Fix arrow markers for sequence diagrams
+                fixArrowMarkers();
+
                 // Reset zoom when new diagram loads
                 resetZoom();
             } catch (error) {
                 contentEl.innerHTML = '<div class="error">Error rendering diagram: ' + error.message + '</div>';
                 console.error('[WEBVIEW] Mermaid error:', error);
             }
+        }
+
+        // Fix arrow markers visibility issue in VS Code webviews
+        function fixArrowMarkers() {
+            const svg = document.querySelector('#diagram-content svg');
+            if (!svg) return;
+
+            // Check if markers exist in defs
+            let defs = svg.querySelector('defs');
+            if (!defs) {
+                defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+                svg.insertBefore(defs, svg.firstChild);
+            }
+
+            // Ensure arrowhead marker exists
+            if (!defs.querySelector('#arrowhead')) {
+                const marker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
+                marker.setAttribute('id', 'arrowhead');
+                marker.setAttribute('refX', '9');
+                marker.setAttribute('refY', '5');
+                marker.setAttribute('markerUnits', 'userSpaceOnUse');
+                marker.setAttribute('markerWidth', '12');
+                marker.setAttribute('markerHeight', '12');
+                marker.setAttribute('orient', 'auto');
+
+                const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                path.setAttribute('d', 'M 0 0 L 10 5 L 0 10 z');
+                path.setAttribute('fill', '#cccccc');
+                path.setAttribute('stroke', '#cccccc');
+
+                marker.appendChild(path);
+                defs.appendChild(marker);
+            }
+
+            // Ensure all lines have marker-end attribute
+            const lines = svg.querySelectorAll('.messageLine0, .messageLine1, line[class*="message"]');
+            lines.forEach(line => {
+                if (!line.hasAttribute('marker-end')) {
+                    line.setAttribute('marker-end', 'url(#arrowhead)');
+                }
+            });
         }
 
         // Initialize Monaco Editor
