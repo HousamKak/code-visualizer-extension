@@ -166,6 +166,16 @@
         "codeVisualizer.githubModel": {
           "type": "string",
           "enum": [
+            "gpt-4.1",
+            "gpt-5",
+            "gpt-5-mini",
+            "gpt-5-codex",
+            "claude-haiku-4.5",
+            "claude-opus-4.1",
+            "claude-sonnet-4",
+            "claude-sonnet-4.5",
+            "gemini-2.5-pro",
+            "grok-code-fast-1",
             "gpt-4o",
             "gpt-4o-mini",
             "gpt-4-turbo",
@@ -191,6 +201,16 @@
             "Phi-3.5-MoE-instruct"
           ],
           "enumDescriptions": [
+            "GPT-4.1 - OpenAI GA flagship",
+            "GPT-5 - OpenAI newest flagship",
+            "GPT-5 Mini - Lightweight GPT-5 tier",
+            "GPT-5 Codex - OpenAI code-focused preview",
+            "Claude Haiku 4.5 - Anthropic fast Claude variant",
+            "Claude Opus 4.1 - Anthropic enterprise reasoning",
+            "Claude Sonnet 4 - Anthropic balanced model",
+            "Claude Sonnet 4.5 - Anthropic latest Sonnet release",
+            "Gemini 2.5 Pro - Google multimodal GA",
+            "Grok Code Fast 1 - xAI code model (preview)",
             "GPT-4 Omni - OpenAI's most advanced (Recommended)",
             "GPT-4 Omni Mini - Faster GPT-4o, good balance",
             "GPT-4 Turbo - Previous gen GPT-4",

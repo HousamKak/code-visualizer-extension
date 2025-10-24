@@ -313,6 +313,16 @@ export class CodeVisualizerExtension {
 
   private async selectModel(): Promise<void> {
     const models = [
+      { label: '$(shield) GPT-4.1', description: 'OpenAI - General availability', value: 'gpt-4.1' },
+      { label: '$(rocket) GPT-5', description: 'OpenAI - Latest flagship', value: 'gpt-5' },
+      { label: '$(zap) GPT-5 Mini', description: 'OpenAI - Lighter GPT-5 tier', value: 'gpt-5-mini' },
+      { label: '$(symbol-function) GPT-5 Codex', description: 'OpenAI - Code-optimized preview', value: 'gpt-5-codex' },
+      { label: '$(comment-discussion) Claude Haiku 4.5', description: 'Anthropic - Fastest Claude', value: 'claude-haiku-4.5' },
+      { label: '$(comment) Claude Opus 4.1', description: 'Anthropic - Enterprise reasoning', value: 'claude-opus-4.1' },
+      { label: '$(comment) Claude Sonnet 4', description: 'Anthropic - Balanced Claude', value: 'claude-sonnet-4' },
+      { label: '$(comment) Claude Sonnet 4.5', description: 'Anthropic - Latest Sonnet', value: 'claude-sonnet-4.5' },
+      { label: '$(globe) Gemini 2.5 Pro', description: 'Google - Multimodal GA', value: 'gemini-2.5-pro' },
+      { label: '$(pulse) Grok Code Fast 1', description: 'xAI - Public preview', value: 'grok-code-fast-1' },
       { label: '$(star) GPT-4 Omni', description: 'OpenAI - Most advanced (Recommended)', value: 'gpt-4o' },
       { label: '$(zap) GPT-4 Omni Mini', description: 'OpenAI - Faster GPT-4o variant', value: 'gpt-4o-mini' },
       { label: '$(rocket) GPT-4 Turbo', description: 'OpenAI - Previous generation', value: 'gpt-4-turbo' },
